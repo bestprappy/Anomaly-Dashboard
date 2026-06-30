@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Todo List (Next.js + FastAPI)
+
+A simple todo-list **frontend** built with Next.js. It talks to a FastAPI
+backend over a small REST API. The backend is not included yet — the UI is
+wired up against the expected routes and degrades gracefully when the API is
+unreachable.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Point the app at your backend by creating a `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-## Learn More
+## Expected backend API
 
-To learn more about Next.js, take a look at the following resources:
+The client in [`app/lib/api.ts`](app/lib/api.ts) expects these FastAPI routes:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Method | Path          | Body                  | Returns        |
+| ------ | ------------- | --------------------- | -------------- |
+| GET    | `/todos`      | —                     | `Todo[]`       |
+| POST   | `/todos`      | `{ title }`           | `Todo`         |
+| PATCH  | `/todos/{id}` | `{ completed }`       | `Todo`         |
+| DELETE | `/todos/{id}` | —                     | `204`          |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`Todo` = `{ id: number, title: string, completed: boolean }`.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Pushing to `master` triggers the [GitHub Actions workflow](.github/workflows/deploy.yml),
+which runs `next build` (static export to `out/`) and publishes to GitHub Pages.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. In the repo settings, set **Pages → Build and deployment → Source** to
+   **GitHub Actions**.
+2. (Optional) Add a repository variable `NEXT_PUBLIC_API_URL` pointing at your
+   deployed backend so the production build uses it.
+
+The site is served under `/Anomaly-Dashboard/` (configured via `basePath` in
+[`next.config.ts`](next.config.ts)).

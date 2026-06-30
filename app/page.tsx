@@ -1,65 +1,121 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { todoApi, type Todo } from "./lib/api";
 
 export default function Home() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [title, setTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      setTodos(await todoApi.list());
+    } catch {
+      setError(
+        "Could not reach the backend. Start the FastAPI server and set NEXT_PUBLIC_API_URL.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function addTodo(e: React.FormEvent) {
+    e.preventDefault();
+    const value = title.trim();
+    if (!value) return;
+    try {
+      const created = await todoApi.create(value);
+      setTodos((prev) => [...prev, created]);
+      setTitle("");
+    } catch {
+      setError("Failed to add todo.");
+    }
+  }
+
+  async function toggle(todo: Todo) {
+    try {
+      const updated = await todoApi.toggle(todo.id, !todo.completed);
+      setTodos((prev) => prev.map((t) => (t.id === todo.id ? updated : t)));
+    } catch {
+      setError("Failed to update todo.");
+    }
+  }
+
+  async function remove(todo: Todo) {
+    try {
+      await todoApi.remove(todo.id);
+      setTodos((prev) => prev.filter((t) => t.id !== todo.id));
+    } catch {
+      setError("Failed to delete todo.");
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="mx-auto w-full max-w-md flex-1 px-4 py-10">
+      <h1 className="mb-6 text-3xl font-bold tracking-tight">Todo List</h1>
+
+      <form onSubmit={addTodo} className="mb-6 flex gap-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Add a task…"
+          className="flex-1 rounded-md border border-black/15 bg-transparent px-3 py-2 outline-none focus:border-black/40 dark:border-white/20 dark:focus:border-white/50"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <button
+          type="submit"
+          className="rounded-md bg-foreground px-4 py-2 font-medium text-background transition-opacity hover:opacity-90"
+        >
+          Add
+        </button>
+      </form>
+
+      {error && (
+        <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+          {error}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm opacity-60">Loading…</p>
+      ) : todos.length === 0 ? (
+        <p className="text-sm opacity-60">No todos yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {todos.map((todo) => (
+            <li
+              key={todo.id}
+              className="flex items-center gap-3 rounded-md border border-black/10 px-3 py-2 dark:border-white/10"
+            >
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onChange={() => toggle(todo)}
+                className="size-4"
+              />
+              <span
+                className={`flex-1 ${todo.completed ? "line-through opacity-50" : ""}`}
+              >
+                {todo.title}
+              </span>
+              <button
+                onClick={() => remove(todo)}
+                className="text-sm opacity-50 transition-opacity hover:opacity-100"
+                aria-label="Delete"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   );
 }

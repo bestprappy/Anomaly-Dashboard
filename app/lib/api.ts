@@ -1,41 +1,65 @@
-// Thin client for the FastAPI backend.
-//
-// The base URL is read from NEXT_PUBLIC_API_URL at build time. While the
-// backend isn't ready yet, set it in a `.env.local` file, e.g.:
-//   NEXT_PUBLIC_API_URL=http://localhost:8000
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_BASE = "https://todo-api-obyu.onrender.com";
 
 export type Todo = {
   id: number;
   title: string;
-  completed: boolean;
+  description: string | null;
+  done: boolean;
+};
+
+type CreateTodoInput = {
+  title: string;
+  description?: string;
+  done?: boolean;
+};
+
+type UpdateTodoInput = {
+  title: string;
+  description?: string;
+  done: boolean;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
+
   if (!res.ok) {
-    throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+    let detail = `${res.status} ${res.statusText}`.trim();
+
+    try {
+      const body: unknown = await res.json();
+      if (
+        body &&
+        typeof body === "object" &&
+        "detail" in body &&
+        typeof body.detail === "string"
+      ) {
+        detail = body.detail;
+      }
+    } catch {
+      // Keep the response status when the server does not send JSON.
+    }
+
+    throw new Error(`Request failed: ${detail}`);
   }
-  // 204 responses (e.g. DELETE) carry no body.
+
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
 
-// Expected FastAPI routes — adjust to match the backend you provide later.
 export const todoApi = {
   list: () => request<Todo[]>("/todos"),
-  create: (title: string) =>
+  get: (id: number) => request<Todo>(`/todos/${id}`),
+  create: (input: CreateTodoInput) =>
     request<Todo>("/todos", {
       method: "POST",
-      body: JSON.stringify({ title }),
+      body: JSON.stringify(input),
     }),
-  toggle: (id: number, completed: boolean) =>
+  update: (id: number, input: UpdateTodoInput) =>
     request<Todo>(`/todos/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ completed }),
+      method: "PUT",
+      body: JSON.stringify(input),
     }),
   remove: (id: number) =>
     request<void>(`/todos/${id}`, { method: "DELETE" }),

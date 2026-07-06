@@ -14,6 +14,8 @@ interface UploadProgressModalProps {
   status: "preparing" | "chunking" | "uploading" | "finalizing" | "complete" | "error";
   error?: string;
   onCancel?: () => void;
+  currentFileIndex?: number;
+  totalFiles?: number;
 }
 
 export function UploadProgressModal({
@@ -27,6 +29,8 @@ export function UploadProgressModal({
   status,
   error,
   onCancel,
+  currentFileIndex = 1,
+  totalFiles = 1,
 }: UploadProgressModalProps) {
   const [uploadSpeed, setUploadSpeed] = useState(0);
   const [remainingTime, setRemainingTime] = useState(0);
@@ -94,7 +98,14 @@ export function UploadProgressModal({
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex-1">
-            <h3 className="text-xl font-bold text-foreground">Uploading File</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold text-foreground">Uploading Files</h3>
+              {totalFiles > 1 && (
+                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-primary/10 text-primary">
+                  {currentFileIndex}/{totalFiles}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground mt-1 truncate">{fileName}</p>
           </div>
           {status !== "uploading" && status !== "finalizing" && (

@@ -148,7 +148,7 @@ class BillingEDAClient {
       throw new Error("No files to upload");
     }
 
-    // Upload each file sequentially with chunking support
+    // Upload each file sequentially (one at a time, wait for completion)
     for (const [fileKey, file] of filesToUpload) {
       if (!file) continue;
 
@@ -157,6 +157,8 @@ class BillingEDAClient {
       const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
 
       try {
+        console.log(`Starting upload for ${fileKey}: ${file.name} (${fileSize / 1_000_000:.1f}MB)`);
+
         onProgress?.({
           fileKey,
           fileName: file.name,
@@ -186,9 +188,20 @@ class BillingEDAClient {
               });
             }
           );
+
+          onProgress?.({
+            fileKey,
+            fileName: file.name,
+            fileSizeBytes: fileSize,
+            uploadedBytes: fileSize,
+            currentChunk: 1,
+            totalChunks: 1,
+            status: "complete",
+          });
         } else {
           // Large file: split into chunks
-          const fileId = `${fileKey}-${Date.now()}`;
+          const fileId = `${fileKey}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
           for (let chunkNum = 0; chunkNum < totalChunks; chunkNum++) {
             const start = chunkNum * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, fileSize);
@@ -215,6 +228,7 @@ class BillingEDAClient {
           }
 
           // Finalize the upload
+          console.log(`Finalizing ${fileKey}...`);
           onProgress?.({
             fileKey,
             fileName: file.name,
@@ -226,19 +240,23 @@ class BillingEDAClient {
           });
 
           await this.finalizeChunkedUpload(fileId);
-        }
 
-        onProgress?.({
-          fileKey,
-          fileName: file.name,
-          fileSizeBytes: fileSize,
-          uploadedBytes: fileSize,
-          currentChunk: totalChunks,
-          totalChunks,
-          status: "complete",
-        });
+          onProgress?.({
+            fileKey,
+            fileName: file.name,
+            fileSizeBytes: fileSize,
+            uploadedBytes: fileSize,
+            currentChunk: totalChunks,
+            totalChunks,
+            status: "complete",
+          });
+
+          console.log(`✅ Completed ${fileKey}`);
+        }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Upload failed";
+        console.error(`❌ Failed to upload ${fileKey}:`, errorMsg);
+
         onProgress?.({
           fileKey,
           fileName: file.name,
@@ -253,6 +271,7 @@ class BillingEDAClient {
       }
     }
 
+    console.log("All files uploaded successfully");
     // Return final status
     return this.getUploadStatus();
   }

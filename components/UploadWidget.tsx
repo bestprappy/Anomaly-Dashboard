@@ -28,6 +28,8 @@ export function UploadWidget({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleFileSelect = useCallback(
@@ -58,6 +60,10 @@ export function UploadWidget({
     setError(null);
     setUploadProgress(null);
 
+    const fileCount = Object.keys(selectedFiles).length;
+    setTotalFilesToUpload(fileCount);
+    setCurrentFileIndex(1);
+
     try {
       // Log file information for debugging
       const fileInfo = Object.entries(selectedFiles).map(([key, file]) => ({
@@ -66,15 +72,21 @@ export function UploadWidget({
         size: file.size,
         type: file.type,
       }));
-      console.log("Uploading files:", fileInfo);
+      console.log(`Uploading ${fileCount} file(s) sequentially:`, fileInfo);
 
+      let fileIndex = 0;
       const status = await api.uploadFiles(
         selectedFiles,
         (progress) => {
+          // Track which file we're uploading
+          if (progress.status === "chunking" || progress.status === "uploading") {
+            fileIndex = fileIndex || Object.keys(selectedFiles).indexOf(progress.fileKey) + 1;
+            setCurrentFileIndex(fileIndex);
+          }
           setUploadProgress(progress);
         }
       );
-      console.log("Upload successful:", status);
+      console.log("✅ All files uploaded successfully:", status);
       setFiles({});
       onUploadComplete(status);
     } catch (err) {
@@ -256,9 +268,13 @@ export function UploadWidget({
         totalChunks={uploadProgress?.totalChunks || 0}
         status={uploadProgress?.status || "uploading"}
         error={uploadProgress?.error}
+        currentFileIndex={currentFileIndex}
+        totalFiles={totalFilesToUpload}
         onCancel={() => {
           if (uploadProgress?.status === "complete" || uploadProgress?.status === "error") {
             setUploadProgress(null);
+            setTotalFilesToUpload(0);
+            setCurrentFileIndex(0);
           }
         }}
       />

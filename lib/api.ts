@@ -157,7 +157,7 @@ class BillingEDAClient {
       const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
 
       try {
-        console.log(`Starting upload for ${fileKey}: ${file.name} (${fileSize / 1_000_000:.1f}MB)`);
+        console.log(`Starting upload for ${fileKey}: ${file.name} (${(fileSize / 1_000_000).toFixed(1)}MB)`);
 
         onProgress?.({
           fileKey,

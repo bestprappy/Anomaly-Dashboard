@@ -24,32 +24,32 @@ export function KPICards({ errorRates, maintenanceData }: KPICardsProps) {
     {
       label: "Total Rows",
       value: errorRates.total_rows.toLocaleString(),
-      color: "from-primary/20 to-primary/5",
+      color: "from-purple-600/40 via-purple-500/20 to-purple-400/10",
     },
     {
       label: "Zero Bill Rate",
       value: (errorRates.zero_bill_rate * 100).toFixed(2) + "%",
-      color: "from-warning/20 to-warning/5",
+      color: "from-blue-600/40 via-blue-500/20 to-blue-400/10",
     },
     {
       label: "Missing KWH",
       value: (errorRates.missing_kwh_rate * 100).toFixed(2) + "%",
-      color: "from-info/20 to-info/5",
+      color: "from-cyan-600/40 via-cyan-500/20 to-cyan-400/10",
     },
     {
       label: "Maintenance Sites",
       value: maintenanceData.maintenance_site_count,
-      color: "from-success/20 to-success/5",
+      color: "from-emerald-600/40 via-emerald-500/20 to-emerald-400/10",
     },
     {
       label: "Bill Without KWH",
       value: (errorRates.bill_without_kwh_rate * 100).toFixed(2) + "%",
-      color: "from-destructive/20 to-destructive/5",
+      color: "from-orange-600/40 via-orange-500/20 to-orange-400/10",
     },
     {
       label: "Negative Values",
       value: errorRates.negative_value_rows,
-      color: "from-accent/20 to-accent/5",
+      color: "from-red-600/40 via-red-500/20 to-red-400/10",
     },
   ];
 
@@ -75,12 +75,12 @@ export function KPICards({ errorRates, maintenanceData }: KPICardsProps) {
         <div
           key={idx}
           data-kpi
-          className={`rounded-lg border border-border bg-gradient-to-br ${card.color} p-4 backdrop-blur-sm`}
+          className={`rounded-2xl border border-white/10 bg-gradient-to-br ${card.color} p-5 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:border-white/20`}
         >
-          <p className="text-xs font-medium uppercase text-muted-foreground">
+          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
             {card.label}
           </p>
-          <p className="mt-3 text-2xl font-bold text-foreground">
+          <p className="mt-4 text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
             {card.value}
           </p>
         </div>

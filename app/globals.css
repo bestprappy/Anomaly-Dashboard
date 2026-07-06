@@ -10,7 +10,7 @@
 --------------------------------------------------------------------------- */
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /* Neutral ramp (light) */
   --background: oklch(0.972 0.006 120);
@@ -22,9 +22,9 @@
   --popover-foreground: oklch(0.19 0.012 120);
   --card-foreground: oklch(0.19 0.012 120);
 
-  /* Primary (crimson) */
-  --primary: oklch(0.54 0.18 24);
-  --primary-foreground: oklch(0.99 0.008 24);
+  /* Primary (purple) */
+  --primary: oklch(0.64 0.18 290);
+  --primary-foreground: oklch(0.99 0.008 290);
 
   /* Neutral supporting */
   --secondary: oklch(0.935 0.01 120);
@@ -56,12 +56,12 @@
   --sidebar-accent-foreground: oklch(0.27 0.075 24);
   --sidebar-border: oklch(0.84 0.011 120);
 
-  /* Charts */
-  --chart-1: oklch(0.54 0.18 24);
-  --chart-2: oklch(0.58 0.12 235);
-  --chart-3: oklch(0.72 0.16 75);
-  --chart-4: oklch(0.58 0.21 29);
-  --chart-5: oklch(0.62 0.16 350);
+  /* Charts - Stakent colors */
+  --chart-1: oklch(0.65 0.19 290);
+  --chart-2: oklch(0.62 0.16 220);
+  --chart-3: oklch(0.68 0.16 50);
+  --chart-4: oklch(0.60 0.18 10);
+  --chart-5: oklch(0.64 0.15 310);
 
   /* Depth and hero treatment */
   --hero-from: oklch(0.54 0.18 24);
@@ -74,18 +74,18 @@
 }
 
 .dark {
-  /* Neutral ramp (dark) - near-black graphite, low chroma, lighter as it rises */
-  --background: oklch(0.145 0.006 120);
-  --foreground: oklch(0.96 0.006 120);
-  --surface: oklch(0.18 0.008 120);
-  --card: oklch(0.205 0.01 120);
-  --elevated: oklch(0.245 0.012 120);
-  --popover: oklch(0.205 0.01 120);
-  --popover-foreground: oklch(0.96 0.006 120);
-  --card-foreground: oklch(0.96 0.006 120);
+  /* Neutral ramp (dark) - deep navy/charcoal like Stakent */
+  --background: oklch(0.12 0.005 260);
+  --foreground: oklch(0.94 0.008 260);
+  --surface: oklch(0.165 0.008 260);
+  --card: oklch(0.19 0.01 260);
+  --elevated: oklch(0.22 0.012 260);
+  --popover: oklch(0.19 0.01 260);
+  --popover-foreground: oklch(0.94 0.008 260);
+  --card-foreground: oklch(0.94 0.008 260);
 
-  --primary: oklch(0.68 0.19 24);
-  --primary-foreground: oklch(0.14 0.035 24);
+  --primary: oklch(0.65 0.19 290);
+  --primary-foreground: oklch(0.98 0.008 290);
 
   --secondary: oklch(0.255 0.012 120);
   --secondary-foreground: oklch(0.94 0.006 120);
@@ -113,11 +113,11 @@
   --sidebar-accent-foreground: oklch(0.96 0.014 24);
   --sidebar-border: oklch(1 0 0 / 8%);
 
-  --chart-1: oklch(0.68 0.19 24);
-  --chart-2: oklch(0.72 0.13 235);
-  --chart-3: oklch(0.78 0.15 80);
-  --chart-4: oklch(0.66 0.2 29);
-  --chart-5: oklch(0.7 0.18 350);
+  --chart-1: oklch(0.70 0.20 290);
+  --chart-2: oklch(0.68 0.17 220);
+  --chart-3: oklch(0.72 0.17 50);
+  --chart-4: oklch(0.66 0.19 10);
+  --chart-5: oklch(0.69 0.16 310);
 
   --hero-from: oklch(0.62 0.2 24);
   --hero-mid: oklch(0.36 0.1 14);

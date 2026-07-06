@@ -24,15 +24,17 @@ export function TrendChart({ trend }: TrendChartProps) {
   const validData = data.filter((d) => d.value !== null);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold">{trend.site_id}</h3>
-        <div className="mt-1 flex gap-3 text-sm text-muted-foreground">
-          {trend.provider && <span>Provider: {trend.provider}</span>}
-          {trend.company && <span>Company: {trend.company}</span>}
-          {trend.site_type && <span>Type: {trend.site_type}</span>}
+    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/50 to-slate-900/20 backdrop-blur-xl p-6 shadow-xl">
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">
+          {trend.site_id}
+        </h3>
+        <div className="mt-2 flex gap-4 text-sm">
+          {trend.provider && <span className="text-slate-400">Provider: <span className="text-slate-200 font-medium">{trend.provider}</span></span>}
+          {trend.company && <span className="text-slate-400">Company: <span className="text-slate-200 font-medium">{trend.company}</span></span>}
+          {trend.site_type && <span className="text-slate-400">Type: <span className="text-slate-200 font-medium">{trend.site_type}</span></span>}
         </div>
-        <p className="mt-1 text-xs uppercase text-muted-foreground">
+        <p className="mt-2 text-xs uppercase tracking-wide text-slate-500">
           Metric: {trend.metric}
         </p>
       </div>

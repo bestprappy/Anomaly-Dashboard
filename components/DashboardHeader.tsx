@@ -15,8 +15,8 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
   const [filterCompany, setFilterCompany] = useAtom(filterCompanyAtom);
 
   return (
-    <header className="fixed top-0 left-64 right-80 z-40 border-b border-border/40 bg-card/50 backdrop-blur">
-      <div className="flex items-center justify-between px-8 py-5">
+    <header className="fixed top-0 left-0 right-0 z-40 border-b border-white/10 bg-gradient-to-r from-slate-900/80 to-slate-900/60 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-5">
         {/* Search and Filters */}
         <div className="flex items-center gap-4 flex-1">
           <div className="relative flex-1 max-w-md">
@@ -58,14 +58,14 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
-          <button className="rounded-lg border border-border/40 bg-surface/30 p-2 hover:bg-surface transition">
-            <Bell className="h-5 w-5 text-muted-foreground" />
+          <button className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 p-2 transition">
+            <Bell className="h-5 w-5 text-slate-400" />
           </button>
 
           {isReady && onUploadClick && (
             <button
               onClick={onUploadClick}
-              className="rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-2 text-sm font-medium text-primary transition flex items-center gap-2"
+              className="rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-400/30 px-4 py-2 text-sm font-semibold text-purple-300 transition flex items-center gap-2 shadow-lg"
               title="Re-upload different files"
             >
               <Upload className="h-4 w-4" />

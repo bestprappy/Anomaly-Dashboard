@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { QueryClientProvider } from "./QueryClientProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Anomaly Dashboard",
-  description: "A self-contained anomaly detection dashboard.",
+  title: "Billing EDA Dashboard",
+  description: "Billing anomaly detection and analysis dashboard",
 };
 
 export default function RootLayout({
@@ -12,8 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <QueryClientProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </QueryClientProvider>
+      </body>
     </html>
   );
 }

@@ -42,13 +42,15 @@ export function UploadWidget({
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      const newItem: FileItem = {
+        key: selectedType,
+        file,
+        type: FILE_TYPES.find((t) => t.key === selectedType)?.label || selectedType,
+      };
+      // One file per type: replace any existing file of the same type
       setSelectedFiles((prev) => [
-        ...prev,
-        {
-          key: selectedType,
-          file,
-          type: FILE_TYPES.find((t) => t.key === selectedType)?.label || selectedType,
-        },
+        ...prev.filter((item) => item.key !== selectedType),
+        newItem,
       ]);
       // Reset input
       if (fileInputRef.current) {

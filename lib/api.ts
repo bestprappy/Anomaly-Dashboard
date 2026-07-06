@@ -347,7 +347,8 @@ class BillingEDAClient {
       }
 
       const CHUNK_SIZE = 5 * 1024 * 1024;
-      const uploadedBytes = Math.min((chunkNum + 1) * CHUNK_SIZE, totalChunks * CHUNK_SIZE);
+      // Exact cumulative bytes: full chunks so far plus this chunk's actual size
+      const uploadedBytes = chunkNum * CHUNK_SIZE + chunk.size;
       onProgress?.(uploadedBytes);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

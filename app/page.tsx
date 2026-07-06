@@ -1,233 +1,193 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { todoApi, type Todo } from "./lib/api";
+import { useMemo, useState } from "react";
+import { Activity, AlertTriangle, Gauge, RefreshCw, TrendingUp } from "lucide-react";
 
-export default function Home() {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set());
-  const [error, setError] = useState<string | null>(null);
+import { AnomalyChart } from "@/components/anomaly-chart";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { generateSeries, summarize, type Severity } from "@/lib/anomaly-data";
 
-  const doneCount = useMemo(
-    () => todos.filter((todo) => todo.done).length,
-    [todos],
+const timeFmt = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const percentFmt = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  maximumFractionDigits: 1,
+});
+
+const severityBadge: Record<Severity, "destructive" | "secondary" | "outline"> = {
+  critical: "destructive",
+  warning: "secondary",
+  normal: "outline",
+};
+
+export default function Dashboard() {
+  const [seed, setSeed] = useState(42);
+
+  const points = useMemo(() => generateSeries(seed), [seed]);
+  const summary = useMemo(() => summarize(points), [points]);
+  const anomalies = useMemo(
+    () => points.filter((p) => p.isAnomaly).sort((a, b) => b.score - a.score),
+    [points],
   );
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadTodos() {
-      try {
-        const loadedTodos = await todoApi.list();
-        if (active) {
-          setTodos(loadedTodos);
-        }
-      } catch (err) {
-        if (active) {
-          setError(messageFromError(err, "Could not load todos."));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadTodos();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function addTodo(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const cleanTitle = title.trim();
-    const cleanDescription = description.trim();
-
-    if (!cleanTitle) {
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const created = await todoApi.create({
-        title: cleanTitle,
-        ...(cleanDescription ? { description: cleanDescription } : {}),
-      });
-
-      setTodos((prev) => [created, ...prev]);
-      setTitle("");
-      setDescription("");
-    } catch (err) {
-      setError(messageFromError(err, "Failed to add todo."));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function toggle(todo: Todo) {
-    setError(null);
-    setBusy(todo.id, true);
-
-    try {
-      const updated = await todoApi.update(todo.id, {
-        title: todo.title,
-        ...(todo.description ? { description: todo.description } : {}),
-        done: !todo.done,
-      });
-
-      setTodos((prev) => prev.map((t) => (t.id === todo.id ? updated : t)));
-    } catch (err) {
-      setError(messageFromError(err, "Failed to update todo."));
-    } finally {
-      setBusy(todo.id, false);
-    }
-  }
-
-  async function remove(todo: Todo) {
-    setError(null);
-    setBusy(todo.id, true);
-
-    try {
-      await todoApi.remove(todo.id);
-      setTodos((prev) => prev.filter((t) => t.id !== todo.id));
-    } catch (err) {
-      setError(messageFromError(err, "Failed to delete todo."));
-      setBusy(todo.id, false);
-    }
-  }
-
-  function setBusy(id: number, busy: boolean) {
-    setBusyIds((current) => {
-      const next = new Set(current);
-
-      if (busy) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-
-      return next;
-    });
-  }
+  const stats = [
+    {
+      label: "Data points",
+      value: summary.total.toString(),
+      hint: "Last 24h · 15-min buckets",
+      icon: Activity,
+    },
+    {
+      label: "Anomalies",
+      value: summary.anomalies.toString(),
+      hint: `${summary.critical} critical`,
+      icon: AlertTriangle,
+    },
+    {
+      label: "Anomaly rate",
+      value: percentFmt.format(summary.anomalyRate),
+      hint: "Share of flagged buckets",
+      icon: Gauge,
+    },
+    {
+      label: "Peak value",
+      value: summary.peakValue.toLocaleString(),
+      hint: `Max score ${summary.maxScore.toFixed(2)}`,
+      icon: TrendingUp,
+    },
+  ];
 
   return (
-    <main className="app-shell">
-      <section className="todo-card" aria-labelledby="todo-title">
-        <header className="todo-header">
-          <div>
-            <p className="eyebrow">Task Board</p>
-            <h1 id="todo-title">Todos</h1>
-          </div>
-          <div
-            className="todo-count"
-            aria-label={`${doneCount} of ${todos.length} todos done`}
-          >
-            {doneCount}/{todos.length} done
-          </div>
-        </header>
-
-        <div className="todo-content">
-          <form className="todo-form" onSubmit={addTodo}>
-            <div className="form-fields">
-              <label className="sr-only" htmlFor="title">
-                Title
-              </label>
-              <input
-                id="title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Title"
-                required
-              />
-
-              <label className="sr-only" htmlFor="description">
-                Description
-              </label>
-              <textarea
-                id="description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Description"
-                rows={3}
-              />
-            </div>
-
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={submitting}
-            >
-              {submitting ? "Adding..." : "Add Todo"}
-            </button>
-          </form>
-
-          {error && (
-            <div className="error-message" role="alert">
-              {error}
-            </div>
-          )}
-
-          {loading ? (
-            <p className="status-message">Loading todos...</p>
-          ) : todos.length === 0 ? (
-            <p className="empty-state">No todos yet.</p>
-          ) : (
-            <ul className="todo-list">
-              {todos.map((todo) => {
-                const isBusy = busyIds.has(todo.id);
-
-                return (
-                  <li
-                    key={todo.id}
-                    className={`todo-item${todo.done ? " is-done" : ""}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={todo.done}
-                      onChange={() => toggle(todo)}
-                      disabled={isBusy}
-                      aria-label={`Mark ${todo.title} as ${
-                        todo.done ? "not done" : "done"
-                      }`}
-                    />
-
-                    <div className="todo-text">
-                      <span className="todo-item-title">{todo.title}</span>
-                      {todo.description && (
-                        <span className="todo-item-description">
-                          {todo.description}
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      className="delete-button"
-                      type="button"
-                      onClick={() => remove(todo)}
-                      disabled={isBusy}
-                    >
-                      Delete
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+            Observability
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+            Anomaly Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Detected anomalies for{" "}
+            <span className="text-foreground font-medium">{summary.metric}</span>{" "}
+            over the last 24 hours.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setSeed((s) => s + 1)}
+          className="border-input bg-card hover:bg-accent inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium shadow-sm transition-colors"
+        >
+          <RefreshCw className="size-4" />
+          Resample
+        </button>
+      </header>
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.label}>
+            <CardHeader>
+              <CardDescription className="flex items-center gap-2">
+                <stat.icon className="size-4" />
+                {stat.label}
+              </CardDescription>
+              <CardTitle className="text-3xl font-bold tabular-nums">
+                {stat.value}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-xs">{stat.hint}</p>
+            </CardContent>
+          </Card>
+        ))}
       </section>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Signal timeline</CardTitle>
+          <CardDescription>
+            Anomalous buckets are marked —{" "}
+            <span className="text-destructive font-medium">red</span> critical,{" "}
+            <span className="text-chart-3 font-medium">amber</span> warning.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AnomalyChart points={points} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Flagged anomalies</CardTitle>
+          <CardDescription>
+            {anomalies.length} buckets ranked by anomaly score.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {anomalies.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-sm">
+              No anomalies in this window.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Metric</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                  <TableHead className="text-right">Score</TableHead>
+                  <TableHead>Severity</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {anomalies.map((p) => (
+                  <TableRow key={p.index}>
+                    <TableCell className="font-medium tabular-nums">
+                      {timeFmt.format(p.timestamp)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {summary.metric}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.value.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.score.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={severityBadge[p.severity]}
+                        className="capitalize"
+                      >
+                        {p.severity}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
-}
-
-function messageFromError(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }

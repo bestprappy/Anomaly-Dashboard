@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Todos",
-  description: "A responsive todo app backed by the deployed API.",
+  title: "Anomaly Dashboard",
+  description: "A self-contained anomaly detection dashboard.",
 };
 
 export default function RootLayout({

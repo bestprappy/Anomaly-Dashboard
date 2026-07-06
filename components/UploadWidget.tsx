@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Upload, Check, AlertCircle } from "lucide-react";
+import { Upload, Check, AlertCircle, X } from "lucide-react";
 import { api, UploadStatus } from "@/lib/api";
 
 const FILE_FIELDS = [
@@ -14,11 +14,13 @@ const FILE_FIELDS = [
 
 interface UploadWidgetProps {
   onUploadComplete: (status: UploadStatus) => void;
+  onClear?: () => void;
   initialStatus: UploadStatus;
 }
 
 export function UploadWidget({
   onUploadComplete,
+  onClear,
   initialStatus,
 }: UploadWidgetProps) {
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -74,15 +76,37 @@ export function UploadWidget({
     <div className="space-y-6">
       <div className="rounded-lg border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Upload Billing Files</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {loaded}/{total} files
-            </span>
+          <div>
+            <h3 className="text-lg font-semibold">Upload Billing Files</h3>
             {loaded > 0 && (
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-success">
-                <Check className="h-3 w-3 text-success-foreground" />
-              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {loaded}/{total} files loaded
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {loaded}/{total} files
+              </span>
+              {loaded > 0 && (
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-success">
+                  <Check className="h-3 w-3 text-success-foreground" />
+                </div>
+              )}
+            </div>
+            {loaded > 0 && (
+              <button
+                onClick={() => {
+                  setFiles({});
+                  setError(null);
+                  onClear?.();
+                }}
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted-foreground transition hover:bg-destructive/20 hover:text-destructive hover:border-destructive/50"
+                title="Clear uploads and start over"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>

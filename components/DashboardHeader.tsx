@@ -3,51 +3,75 @@
 import { useAtom } from "jotai";
 import { filterProviderAtom, filterCompanyAtom } from "@/lib/atoms";
 import { ThemeToggle } from "./ThemeToggle";
-import { BarChart3 } from "lucide-react";
+import { Search, Upload, Bell } from "lucide-react";
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  onUploadClick?: () => void;
+  isReady?: boolean;
+}
+
+export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps) {
   const [filterProvider, setFilterProvider] = useAtom(filterProviderAtom);
   const [filterCompany, setFilterCompany] = useAtom(filterCompanyAtom);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/60">
-            <BarChart3 className="h-5 w-5 text-primary-foreground" />
+    <header className="fixed top-0 left-64 right-80 z-40 border-b border-border/40 bg-card/50 backdrop-blur">
+      <div className="flex items-center justify-between px-8 py-5">
+        {/* Search and Filters */}
+        <div className="flex items-center gap-4 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="w-full rounded-lg border border-border/40 bg-surface/30 pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            />
           </div>
-          <h1 className="text-xl font-bold">Billing EDA Dashboard</h1>
+
+          <select
+            value={filterProvider}
+            onChange={(e) =>
+              setFilterProvider(e.target.value as "all" | "PEA" | "MEA")
+            }
+            className="rounded-lg border border-border/40 bg-surface/30 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="all">All Providers</option>
+            <option value="PEA">PEA</option>
+            <option value="MEA">MEA</option>
+          </select>
+
+          <select
+            value={filterCompany}
+            onChange={(e) =>
+              setFilterCompany(
+                e.target.value as "all" | "BFKT" | "TUC" | "TMV"
+              )
+            }
+            className="rounded-lg border border-border/40 bg-surface/30 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="all">All Companies</option>
+            <option value="BFKT">BFKT</option>
+            <option value="TUC">TUC</option>
+            <option value="TMV">TMV</option>
+          </select>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <select
-              value={filterProvider}
-              onChange={(e) =>
-                setFilterProvider(e.target.value as "all" | "PEA" | "MEA")
-              }
-              className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="all">All Providers</option>
-              <option value="PEA">PEA</option>
-              <option value="MEA">MEA</option>
-            </select>
+        {/* Right Actions */}
+        <div className="flex items-center gap-3">
+          <button className="rounded-lg border border-border/40 bg-surface/30 p-2 hover:bg-surface transition">
+            <Bell className="h-5 w-5 text-muted-foreground" />
+          </button>
 
-            <select
-              value={filterCompany}
-              onChange={(e) =>
-                setFilterCompany(
-                  e.target.value as "all" | "BFKT" | "TUC" | "TMV"
-                )
-              }
-              className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+          {isReady && onUploadClick && (
+            <button
+              onClick={onUploadClick}
+              className="rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-2 text-sm font-medium text-primary transition flex items-center gap-2"
+              title="Re-upload different files"
             >
-              <option value="all">All Companies</option>
-              <option value="BFKT">BFKT</option>
-              <option value="TUC">TUC</option>
-              <option value="TMV">TMV</option>
-            </select>
-          </div>
+              <Upload className="h-4 w-4" />
+              Change Files
+            </button>
+          )}
 
           <ThemeToggle />
         </div>

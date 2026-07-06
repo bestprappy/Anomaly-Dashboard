@@ -113,6 +113,17 @@ export interface SiteTrend {
   series: SiteTrendPoint[];
 }
 
+export interface UploadProgress {
+  fileKey: string;
+  fileName: string;
+  fileSizeBytes: number;
+  uploadedBytes: number;
+  currentChunk: number;
+  totalChunks: number;
+  status: "preparing" | "chunking" | "uploading" | "finalizing" | "complete" | "error";
+  error?: string;
+}
+
 class BillingEDAClient {
   private baseUrl = API_BASE_URL;
 
@@ -128,7 +139,8 @@ class BillingEDAClient {
   }
 
   async uploadFiles(
-    files: Record<string, File | null>
+    files: Record<string, File | null>,
+    onProgress?: (progress: UploadProgress) => void
   ): Promise<UploadStatus> {
     const filesToUpload = Object.entries(files).filter(([, file]) => file);
 
@@ -136,11 +148,124 @@ class BillingEDAClient {
       throw new Error("No files to upload");
     }
 
-    // Try uploading all files at once first
+    // Upload each file sequentially with chunking support
+    for (const [fileKey, file] of filesToUpload) {
+      if (!file) continue;
+
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+      const fileSize = file.size;
+      const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+
+      try {
+        onProgress?.({
+          fileKey,
+          fileName: file.name,
+          fileSizeBytes: fileSize,
+          uploadedBytes: 0,
+          currentChunk: 0,
+          totalChunks,
+          status: "chunking",
+        });
+
+        if (totalChunks === 1) {
+          // File is small enough, upload as single chunk
+          await this.uploadSingleChunk(
+            fileKey,
+            file,
+            0,
+            1,
+            (uploadedBytes) => {
+              onProgress?.({
+                fileKey,
+                fileName: file.name,
+                fileSizeBytes: fileSize,
+                uploadedBytes,
+                currentChunk: 1,
+                totalChunks: 1,
+                status: "uploading",
+              });
+            }
+          );
+        } else {
+          // Large file: split into chunks
+          const fileId = `${fileKey}-${Date.now()}`;
+          for (let chunkNum = 0; chunkNum < totalChunks; chunkNum++) {
+            const start = chunkNum * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, fileSize);
+            const chunk = file.slice(start, end);
+
+            await this.uploadChunk(
+              fileId,
+              chunkNum,
+              totalChunks,
+              fileKey,
+              chunk,
+              (uploadedBytes) => {
+                onProgress?.({
+                  fileKey,
+                  fileName: file.name,
+                  fileSizeBytes: fileSize,
+                  uploadedBytes,
+                  currentChunk: chunkNum + 1,
+                  totalChunks,
+                  status: "uploading",
+                });
+              }
+            );
+          }
+
+          // Finalize the upload
+          onProgress?.({
+            fileKey,
+            fileName: file.name,
+            fileSizeBytes: fileSize,
+            uploadedBytes: fileSize,
+            currentChunk: totalChunks,
+            totalChunks,
+            status: "finalizing",
+          });
+
+          await this.finalizeChunkedUpload(fileId);
+        }
+
+        onProgress?.({
+          fileKey,
+          fileName: file.name,
+          fileSizeBytes: fileSize,
+          uploadedBytes: fileSize,
+          currentChunk: totalChunks,
+          totalChunks,
+          status: "complete",
+        });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Upload failed";
+        onProgress?.({
+          fileKey,
+          fileName: file.name,
+          fileSizeBytes: fileSize,
+          uploadedBytes: 0,
+          currentChunk: 0,
+          totalChunks,
+          status: "error",
+          error: errorMsg,
+        });
+        throw err;
+      }
+    }
+
+    // Return final status
+    return this.getUploadStatus();
+  }
+
+  private async uploadSingleChunk(
+    fileKey: string,
+    file: File,
+    chunkNum: number,
+    totalChunks: number,
+    onProgress?: (uploadedBytes: number) => void
+  ): Promise<void> {
     const form = new FormData();
-    filesToUpload.forEach(([key, file]) => {
-      form.append(key, file as File);
-    });
+    form.append(fileKey, file);
 
     const res = await fetch(`${this.baseUrl}/api/upload`, {
       method: "POST",
@@ -157,7 +282,97 @@ class BillingEDAClient {
       }
       throw new Error(errorMessage);
     }
-    return res.json();
+
+    onProgress?.(file.size);
+  }
+
+  private async uploadChunk(
+    fileId: string,
+    chunkNum: number,
+    totalChunks: number,
+    fileKey: string,
+    chunk: Blob,
+    onProgress?: (uploadedBytes: number) => void
+  ): Promise<void> {
+    const form = new FormData();
+    form.append("chunk", chunk);
+
+    const params = new URLSearchParams({
+      file_id: fileId,
+      chunk_number: chunkNum.toString(),
+      total_chunks: totalChunks.toString(),
+      file_key: fileKey,
+    });
+
+    const url = `${this.baseUrl}/api/upload/chunk?${params}`;
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        body: form,
+      });
+
+      if (!res.ok) {
+        let errorMessage = `Chunk upload failed: ${res.status} ${res.statusText}`;
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.detail || errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, try to get text
+          try {
+            const text = await res.text();
+            if (text) errorMessage = text;
+          } catch {}
+        }
+        throw new Error(errorMessage);
+      }
+
+      const CHUNK_SIZE = 5 * 1024 * 1024;
+      const uploadedBytes = Math.min((chunkNum + 1) * CHUNK_SIZE, totalChunks * CHUNK_SIZE);
+      onProgress?.(uploadedBytes);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to upload chunk ${chunkNum}/${totalChunks}:`, msg);
+      throw err;
+    }
+  }
+
+  private async finalizeChunkedUpload(fileId: string): Promise<UploadStatus> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/upload/finalize?file_id=${encodeURIComponent(fileId)}`,
+        {
+          method: "POST",
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        let errorMessage = `Finalize failed: ${res.status} ${res.statusText}`;
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.detail || errorData.error || errorMessage;
+        } catch {
+          try {
+            const text = await res.text();
+            if (text) errorMessage = text;
+          } catch {}
+        }
+        throw new Error(errorMessage);
+      }
+
+      return res.json();
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error("Finalize request timed out (120s). Backend may be processing large file. Please check backend status.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async getEDASummary(): Promise<EDASummary> {

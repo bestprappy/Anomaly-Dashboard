@@ -3,7 +3,7 @@
 import { useAtom } from "jotai";
 import { filterProviderAtom, filterCompanyAtom } from "@/lib/atoms";
 import { ThemeToggle } from "./ThemeToggle";
-import { Search, Upload, Bell } from "lucide-react";
+import { Search, Upload, Bell, BarChart3 } from "lucide-react";
 
 interface DashboardHeaderProps {
   onUploadClick?: () => void;
@@ -15,16 +15,27 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
   const [filterCompany, setFilterCompany] = useAtom(filterCompanyAtom);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 border-b border-white/10 bg-gradient-to-r from-slate-900/80 to-slate-900/60 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-5">
+    <header className="fixed top-0 left-0 right-0 z-40 border-b border-border bg-card backdrop-blur-sm smooth-transition">
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-4">
+        {/* Logo/Title */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+            <BarChart3 className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div className="hidden sm:block">
+            <h1 className="text-lg font-bold text-foreground">Dashboard</h1>
+            <p className="text-xs text-muted-foreground">Billing Analytics</p>
+          </div>
+        </div>
+
         {/* Search and Filters */}
-        <div className="flex items-center gap-4 flex-1">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-3 flex-1 max-w-2xl mx-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               placeholder="Search..."
-              className="w-full rounded-lg border border-border/40 bg-surface/30 pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              className="input-base w-full pl-10 pr-4"
             />
           </div>
 
@@ -33,7 +44,7 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
             onChange={(e) =>
               setFilterProvider(e.target.value as "all" | "PEA" | "MEA")
             }
-            className="rounded-lg border border-border/40 bg-surface/30 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            className="input-base px-3"
           >
             <option value="all">All Providers</option>
             <option value="PEA">PEA</option>
@@ -47,7 +58,7 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
                 e.target.value as "all" | "BFKT" | "TUC" | "TMV"
               )
             }
-            className="rounded-lg border border-border/40 bg-surface/30 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            className="input-base px-3"
           >
             <option value="all">All Companies</option>
             <option value="BFKT">BFKT</option>
@@ -57,19 +68,19 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
-          <button className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 p-2 transition">
-            <Bell className="h-5 w-5 text-slate-400" />
+        <div className="flex items-center gap-2">
+          <button className="btn-base btn-ghost" title="Notifications">
+            <Bell className="h-5 w-5" />
           </button>
 
           {isReady && onUploadClick && (
             <button
               onClick={onUploadClick}
-              className="rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-400/30 px-4 py-2 text-sm font-semibold text-purple-300 transition flex items-center gap-2 shadow-lg"
+              className="btn-base btn-primary hidden sm:flex"
               title="Re-upload different files"
             >
               <Upload className="h-4 w-4" />
-              Change Files
+              <span>Change Files</span>
             </button>
           )}
 

@@ -55,56 +55,57 @@ export function SiteSearch() {
   };
 
   return (
-    <div className="relative">
-      <div className="relative flex items-center rounded-lg border border-border bg-card">
-        <Search className="ml-3 h-5 w-5 text-muted-foreground" />
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Search site ID..."
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          className="flex-1 border-0 bg-transparent px-3 py-2 text-sm outline-none"
-        />
-        {query && (
-          <button
-            onClick={handleClear}
-            className="mr-2 rounded p-1 hover:bg-surface"
-          >
-            <X className="h-4 w-4 text-muted-foreground" />
-          </button>
-        )}
-      </div>
+    <>
+      <div className="relative flex-1">
+        <div className="relative flex items-center rounded-md border border-border bg-surface/50 focus-within:ring-1 focus-within:ring-primary/30">
+          <Search className="ml-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search site ID..."
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            className="flex-1 border-0 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+          />
+          {query && (
+            <button
+              onClick={handleClear}
+              className="mr-2 rounded p-1.5 hover:bg-surface transition-colors"
+              title="Clear search"
+            >
+              <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+            </button>
+          )}
+        </div>
 
-      {open && (
-        <div className="absolute top-full left-0 right-0 z-10 mt-2 max-h-60 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
-          {loading ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              Loading...
-            </div>
-          ) : suggestions.length > 0 ? (
+        {open && suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-md border border-border bg-card shadow-lifted">
             <div className="divide-y divide-border">
               {suggestions.map((siteId) => (
                 <button
                   key={siteId}
                   onClick={() => handleSelect(siteId)}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-surface"
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-surface/50 transition-colors"
                 >
-                  {siteId}
+                  <span className="font-mono text-primary">{siteId}</span>
                 </button>
               ))}
             </div>
-          ) : query.length >= 2 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              No sites found
-            </div>
-          ) : null}
-        </div>
+          </div>
+        )}
+      </div>
+
+      {/* Overlay to close search when clicking outside */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setOpen(false)}
+        />
       )}
-    </div>
+    </>
   );
 }

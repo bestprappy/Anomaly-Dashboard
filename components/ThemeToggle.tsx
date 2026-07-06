@@ -14,8 +14,9 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="rounded-lg border border-border bg-card p-2 transition hover:bg-surface"
+      className="btn-base btn-ghost"
       aria-label="Toggle theme"
+      title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
     >
       {theme === "light" ? (
         <Moon className="h-5 w-5" />

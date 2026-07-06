@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Upload, Check, AlertCircle, X } from "lucide-react";
-import { api, UploadStatus } from "@/lib/api";
+import { api, UploadStatus, UploadProgress } from "@/lib/api";
+import { UploadProgressModal } from "./UploadProgressModal";
 
 const FILE_FIELDS = [
   { key: "pea_bfkt", label: "PEA BFKT", required: false },
@@ -26,6 +27,7 @@ export function UploadWidget({
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleFileSelect = useCallback(
@@ -54,6 +56,7 @@ export function UploadWidget({
 
     setLoading(true);
     setError(null);
+    setUploadProgress(null);
 
     try {
       // Log file information for debugging
@@ -65,19 +68,27 @@ export function UploadWidget({
       }));
       console.log("Uploading files:", fileInfo);
 
-      const status = await api.uploadFiles(selectedFiles);
+      const status = await api.uploadFiles(
+        selectedFiles,
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
       console.log("Upload successful:", status);
       setFiles({});
       onUploadComplete(status);
     } catch (err) {
       const errorMsg =
-        err instanceof Error ? err.message : "Upload failed. Try again.";
-      console.error("Upload error:", {
-        message: errorMsg,
+        err instanceof Error ? err.message : JSON.stringify(err) || "Upload failed. Try again.";
+      console.error("Upload error:", errorMsg);
+      console.error("Error details:", {
+        type: typeof err,
+        isError: err instanceof Error,
         selectedFiles: Object.keys(selectedFiles),
-        error: err,
+        fullError: err,
       });
       setError(errorMsg);
+      setUploadProgress(null);
     } finally {
       setLoading(false);
     }
@@ -233,6 +244,24 @@ export function UploadWidget({
           </div>
         </div>
       )}
+
+      {/* Upload Progress Modal */}
+      <UploadProgressModal
+        isOpen={uploadProgress !== null}
+        fileKey={uploadProgress?.fileKey || ""}
+        fileName={uploadProgress?.fileName || ""}
+        fileSizeBytes={uploadProgress?.fileSizeBytes || 0}
+        uploadedBytes={uploadProgress?.uploadedBytes || 0}
+        currentChunk={uploadProgress?.currentChunk || 0}
+        totalChunks={uploadProgress?.totalChunks || 0}
+        status={uploadProgress?.status || "uploading"}
+        error={uploadProgress?.error}
+        onCancel={() => {
+          if (uploadProgress?.status === "complete" || uploadProgress?.status === "error") {
+            setUploadProgress(null);
+          }
+        }}
+      />
     </div>
   );
 }

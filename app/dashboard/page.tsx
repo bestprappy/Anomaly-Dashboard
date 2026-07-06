@@ -13,7 +13,7 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { useAtom } from "jotai";
 import { selectedSiteIdAtom, filterProviderAtom } from "@/lib/atoms";
-import { AlertCircle, Database, TrendingUp } from "lucide-react";
+import { AlertCircle, Database, TrendingUp, Search } from "lucide-react";
 
 export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,20 +78,20 @@ export default function DashboardPage() {
         onUploadClick={handleClearUpload}
       />
 
-      {/* Main Content - Full Width */}
-      <div className="pt-24 pb-12 px-8">
+      {/* Main Content */}
+      <div className="pt-20 pb-16 px-4 sm:px-8">
         <div ref={containerRef} className="max-w-7xl mx-auto space-y-8">
           {/* Upload Section */}
           {!status?.ready || showUploadSection ? (
-            <section data-animate className="space-y-4">
+            <section data-animate className="card-base p-8 space-y-6">
               <div>
-                <h2 className="text-2xl font-bold">
+                <h2 className="text-3xl font-bold">
                   {showUploadSection ? "Upload Different Files" : "Get Started"}
                 </h2>
-                <p className="mt-2 text-muted-foreground">
+                <p className="mt-3 text-foreground/70 max-w-2xl">
                   {showUploadSection
                     ? "Select new files to replace the current data"
-                    : "Upload your billing data files to begin the analysis"}
+                    : "Upload your billing data files to begin comprehensive analysis"}
                 </p>
               </div>
               <UploadWidget
@@ -113,45 +113,47 @@ export default function DashboardPage() {
           {status?.ready && summary && !isLoading ? (
             <>
               {/* KPI Cards */}
-              <section data-animate>
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Key Metrics
-                </h2>
-                <KPICards
-                  errorRates={summary.error_rates}
-                  maintenanceData={summary.maintenance_sites}
-                />
+              <section data-animate className="w-full">
+                <h3 className="section-label mb-5">Key Metrics</h3>
+                <div className="w-full">
+                  <KPICards
+                    errorRates={summary.error_rates}
+                    maintenanceData={summary.maintenance_sites}
+                  />
+                </div>
               </section>
 
               {/* Analysis Section */}
               <section data-animate className="grid gap-6 lg:grid-cols-2">
                 {/* Bill Range */}
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-blue-400/5 backdrop-blur-xl p-6 shadow-xl">
-                  <div className="mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-blue-400" />
-                    <h3 className="font-semibold">Bill Range</h3>
+                <div className="card-base p-6">
+                  <div className="mb-6 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md bg-blue-500/10 flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Bill Range</h3>
                   </div>
                   <div className="space-y-3">
                     {summary.bill_range.per_provider?.PEA && (
-                      <div className="rounded-xl bg-gradient-to-br from-purple-600/30 to-purple-500/10 border border-purple-400/20 p-4">
-                        <p className="text-sm font-semibold text-purple-200">PEA</p>
-                        <p className="mt-2 text-xs text-purple-300/70">
-                          {summary.bill_range.per_provider.PEA.min_month} to{" "}
+                      <div className="p-4 rounded-md border border-border bg-surface/50">
+                        <p className="text-sm font-semibold text-foreground">PEA</p>
+                        <p className="mt-2 text-sm text-muted-foreground font-mono">
+                          {summary.bill_range.per_provider.PEA.min_month} → {" "}
                           {summary.bill_range.per_provider.PEA.max_month}
                         </p>
-                        <p className="text-xs text-purple-300 font-bold mt-2">
+                        <p className="text-xs text-foreground/60 mt-2">
                           {summary.bill_range.per_provider.PEA.n_months} months
                         </p>
                       </div>
                     )}
                     {summary.bill_range.per_provider?.MEA && (
-                      <div className="rounded-xl bg-gradient-to-br from-cyan-600/30 to-cyan-500/10 border border-cyan-400/20 p-4">
-                        <p className="text-sm font-semibold text-cyan-200">MEA</p>
-                        <p className="mt-2 text-xs text-cyan-300/70">
-                          {summary.bill_range.per_provider.MEA.min_month} to{" "}
+                      <div className="p-4 rounded-md border border-border bg-surface/50">
+                        <p className="text-sm font-semibold text-foreground">MEA</p>
+                        <p className="mt-2 text-sm text-muted-foreground font-mono">
+                          {summary.bill_range.per_provider.MEA.min_month} → {" "}
                           {summary.bill_range.per_provider.MEA.max_month}
                         </p>
-                        <p className="text-xs text-cyan-300 font-bold mt-2">
+                        <p className="text-xs text-foreground/60 mt-2">
                           {summary.bill_range.per_provider.MEA.n_months} months
                         </p>
                       </div>
@@ -160,15 +162,17 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Site Types Distribution */}
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-orange-600/20 via-orange-500/10 to-orange-400/5 backdrop-blur-xl p-6 shadow-xl">
-                  <div className="mb-6 flex items-center gap-2">
-                    <Database className="h-5 w-5 text-orange-400" />
-                    <h3 className="font-semibold">Site Types</h3>
+                <div className="card-base p-6">
+                  <div className="mb-6 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md bg-emerald-500/10 flex items-center justify-center">
+                      <Database className="h-5 w-5 text-emerald-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Site Types</h3>
                   </div>
                   <div className="space-y-3">
                     {summary.site_types?.PEA && (
-                      <div className="rounded-xl bg-gradient-to-br from-emerald-600/30 to-emerald-500/10 border border-emerald-400/20 p-4">
-                        <p className="text-sm font-semibold text-emerald-200 mb-3">PEA</p>
+                      <div className="p-4 rounded-md border border-border bg-surface/50">
+                        <p className="text-sm font-semibold text-foreground mb-3">PEA</p>
                         <div className="space-y-2">
                           {Object.entries(summary.site_types.PEA).map(
                             ([type, count]) => (
@@ -176,10 +180,10 @@ export default function DashboardPage() {
                                 key={type}
                                 className="flex justify-between items-center text-xs"
                               >
-                                <span className="text-emerald-300/70">
+                                <span className="text-muted-foreground">
                                   {type}
                                 </span>
-                                <span className="font-bold text-emerald-300">{count}</span>
+                                <span className="font-bold text-foreground">{count}</span>
                               </div>
                             )
                           )}
@@ -187,8 +191,8 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {summary.site_types?.MEA && (
-                      <div className="rounded-xl bg-gradient-to-br from-pink-600/30 to-pink-500/10 border border-pink-400/20 p-4">
-                        <p className="text-sm font-semibold text-pink-200 mb-3">MEA</p>
+                      <div className="p-4 rounded-md border border-border bg-surface/50">
+                        <p className="text-sm font-semibold text-foreground mb-3">MEA</p>
                         <div className="space-y-2">
                           {Object.entries(summary.site_types.MEA).map(
                             ([type, count]) => (
@@ -196,10 +200,10 @@ export default function DashboardPage() {
                                 key={type}
                                 className="flex justify-between items-center text-xs"
                               >
-                                <span className="text-pink-300/70">
+                                <span className="text-muted-foreground">
                                   {type}
                                 </span>
-                                <span className="font-bold text-pink-300">{count}</span>
+                                <span className="font-bold text-foreground">{count}</span>
                               </div>
                             )
                           )}
@@ -212,26 +216,26 @@ export default function DashboardPage() {
 
               {/* Data Quality */}
               <section data-animate>
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Data Quality
-                </h2>
+                <h3 className="section-label mb-4">Data Quality</h3>
                 <DataQualityTable duplicates={summary.duplicates} />
               </section>
 
               {/* Site Trend */}
-              <section data-animate>
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Site Analysis
-                </h2>
-                <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/50 to-slate-900/20 backdrop-blur-xl p-4 shadow-lg">
+              <section data-animate className="w-full">
+                <h3 className="section-label mb-5">Site Analysis</h3>
+                <div className="card-base p-6 mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-sm font-medium text-foreground">Find a site:</label>
+                  </div>
                   <SiteSearch />
                 </div>
                 {selectedSiteId && trend ? (
                   <TrendChart trend={trend} />
                 ) : (
-                  <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/50 to-slate-900/20 backdrop-blur-xl p-12 text-center shadow-lg">
+                  <div className="card-base p-12 text-center">
                     <p className="text-muted-foreground">
-                      Search for a site to view its trend
+                      Search for a site to view its trend analysis
                     </p>
                   </div>
                 )}
@@ -239,42 +243,40 @@ export default function DashboardPage() {
 
               {/* Maintenance Sites */}
               <section data-animate>
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Maintenance Records
-                </h2>
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-900/20 backdrop-blur-xl overflow-hidden shadow-xl">
+                <h3 className="section-label mb-4">Maintenance Records</h3>
+                <div className="card-base overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/10 bg-gradient-to-r from-slate-900/80 to-slate-900/40">
-                        <th className="px-6 py-4 text-left font-semibold text-xs uppercase text-blue-300">
+                      <tr className="border-b border-border bg-surface/50">
+                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
                           Site ID
                         </th>
-                        <th className="px-6 py-4 text-left font-semibold text-xs uppercase text-blue-300">
+                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
                           Provider
                         </th>
-                        <th className="px-6 py-4 text-left font-semibold text-xs uppercase text-blue-300">
+                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
                           Company
                         </th>
-                        <th className="px-6 py-4 text-left font-semibold text-xs uppercase text-blue-300">
+                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
                           Type
                         </th>
-                        <th className="px-6 py-4 text-right font-semibold text-xs uppercase text-blue-300">
+                        <th className="px-6 py-3 text-right font-semibold text-xs uppercase text-muted-foreground">
                           Amount
                         </th>
-                        <th className="px-6 py-4 text-left font-semibold text-xs uppercase text-blue-300">
+                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
                           Last Maintenance
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-border">
                       {summary.maintenance_sites.maintenance_sites_last_6_months
                         .slice(0, 10)
                         .map((site, idx) => (
                           <tr
                             key={idx}
-                            className="hover:bg-white/5 transition-colors"
+                            className="hover:bg-surface/50 transition-colors"
                           >
-                            <td className="px-6 py-4 font-mono text-xs font-semibold text-purple-300">
+                            <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">
                               {site.site_id}
                             </td>
                             <td className="px-6 py-4 text-sm font-medium">
@@ -283,13 +285,13 @@ export default function DashboardPage() {
                             <td className="px-6 py-4 text-sm font-medium">
                               {site.company}
                             </td>
-                            <td className="px-6 py-4 text-sm text-slate-400">
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
                               {site.site_type}
                             </td>
-                            <td className="px-6 py-4 text-right font-bold text-cyan-300">
+                            <td className="px-6 py-4 text-right font-bold text-primary">
                               {site.bill_amount.toLocaleString()}
                             </td>
-                            <td className="px-6 py-4 text-sm text-slate-400">
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
                               {site.last_maintenance_month}
                             </td>
                           </tr>

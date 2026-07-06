@@ -1,17 +1,23 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Upload, Check, AlertCircle, X } from "lucide-react";
+import { Upload, Check, AlertCircle, X, Plus } from "lucide-react";
 import { api, UploadStatus, UploadProgress } from "@/lib/api";
 import { UploadProgressModal } from "./UploadProgressModal";
 
-const FILE_FIELDS = [
-  { key: "pea_bfkt", label: "PEA BFKT", required: false },
-  { key: "pea_tuc", label: "PEA TUC", required: false },
-  { key: "mea_bfkt", label: "MEA BFKT", required: false },
-  { key: "mea_tuc", label: "MEA TUC", required: false },
-  { key: "mea_tmv", label: "MEA TMV", required: false },
+const FILE_TYPES = [
+  { key: "pea_bfkt", label: "PEA BFKT" },
+  { key: "pea_tuc", label: "PEA TUC" },
+  { key: "mea_bfkt", label: "MEA BFKT" },
+  { key: "mea_tuc", label: "MEA TUC" },
+  { key: "mea_tmv", label: "MEA TMV" },
 ];
+
+interface FileItem {
+  key: string;
+  file: File;
+  type: string;
+}
 
 interface UploadWidgetProps {
   onUploadComplete: (status: UploadStatus) => void;
@@ -24,81 +30,80 @@ export function UploadWidget({
   onClear,
   initialStatus,
 }: UploadWidgetProps) {
-  const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
-  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [selectedType, setSelectedType] = useState<string>("pea_bfkt");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback(
-    (key: string, file: File | null) => {
-      setFiles((prev) => ({ ...prev, [key]: file }));
-      setError(null);
-    },
-    []
-  );
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFiles((prev) => [
+        ...prev,
+        {
+          key: selectedType,
+          file,
+          type: FILE_TYPES.find((t) => t.key === selectedType)?.label || selectedType,
+        },
+      ]);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [selectedType]);
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, key: string) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFileSelect(key, file);
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleUpload = async () => {
-    const selectedFiles = Object.fromEntries(
-      Object.entries(files).filter(([, file]) => file !== null)
-    );
-
-    if (Object.keys(selectedFiles).length === 0) {
-      setError("Please select at least one file");
+    if (selectedFiles.length === 0) {
+      setError("Please add at least one file");
       return;
     }
+
+    // Convert file items to upload format
+    const filesToUpload: Record<string, File> = {};
+    selectedFiles.forEach((item) => {
+      filesToUpload[item.key] = item.file;
+    });
 
     setLoading(true);
     setError(null);
     setUploadProgress(null);
-
-    const fileCount = Object.keys(selectedFiles).length;
-    setTotalFilesToUpload(fileCount);
+    setTotalFilesToUpload(selectedFiles.length);
     setCurrentFileIndex(1);
 
     try {
-      // Log file information for debugging
-      const fileInfo = Object.entries(selectedFiles).map(([key, file]) => ({
-        key,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-      }));
-      console.log(`Uploading ${fileCount} file(s) sequentially:`, fileInfo);
+      console.log(`Uploading ${selectedFiles.length} file(s) sequentially`);
 
       let fileIndex = 0;
       const status = await api.uploadFiles(
-        selectedFiles,
+        filesToUpload,
         (progress) => {
-          // Track which file we're uploading
           if (progress.status === "chunking" || progress.status === "uploading") {
-            fileIndex = fileIndex || Object.keys(selectedFiles).indexOf(progress.fileKey) + 1;
-            setCurrentFileIndex(fileIndex);
+            const currentIndex = selectedFiles.findIndex((f) => f.key === progress.fileKey) + 1;
+            if (currentIndex > 0) {
+              setCurrentFileIndex(currentIndex);
+              fileIndex = currentIndex;
+            }
           }
           setUploadProgress(progress);
         }
       );
-      console.log("✅ All files uploaded successfully:", status);
-      setFiles({});
+
+      console.log("✅ All files uploaded successfully");
+      setSelectedFiles([]);
       onUploadComplete(status);
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : JSON.stringify(err) || "Upload failed. Try again.";
       console.error("Upload error:", errorMsg);
-      console.error("Error details:", {
-        type: typeof err,
-        isError: err instanceof Error,
-        selectedFiles: Object.keys(selectedFiles),
-        fullError: err,
-      });
       setError(errorMsg);
       setUploadProgress(null);
     } finally {
@@ -112,134 +117,125 @@ export function UploadWidget({
 
   return (
     <div className="space-y-6">
-      <div className="card-base p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Upload Billing Files</h3>
-            {loaded > 0 && (
-              <div className="mt-2 flex items-center gap-3">
-                <div className="h-1.5 flex-1 max-w-xs rounded-full bg-surface overflow-hidden">
-                  <div
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${(loaded / total) * 100}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {loaded}/{total} files
-                </p>
-              </div>
-            )}
+      <div className="card-base p-8 space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold">Upload Billing Files</h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            Add files to upload and analyze your billing data
+          </p>
+        </div>
+
+        {loaded > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="h-2 flex-1 max-w-xs rounded-full bg-surface overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${(loaded / total) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {loaded}/{total} files
+            </p>
           </div>
-          {loaded > 0 && (
-            <button
-              onClick={() => {
-                setFiles({});
-                setError(null);
-                onClear?.();
-              }}
-              className="btn-base btn-ghost"
-              title="Clear uploads and start over"
+        )}
+
+        {initialStatus.message && (
+          <p className="text-sm text-muted-foreground">{initialStatus.message}</p>
+        )}
+
+        {/* Add Files Section */}
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-border bg-background text-sm font-medium text-foreground"
+              disabled={loading}
             >
-              <X className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs">Clear</span>
+              {FILE_TYPES.map((type) => (
+                <option key={type.key} value={type.key}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              className="btn-base btn-primary flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add File</span>
             </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelect}
+              accept=".csv,.xlsx,.xls"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Selected Files List */}
+          {selectedFiles.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
+                {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""} selected
+              </p>
+              <div className="space-y-2">
+                {selectedFiles.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface/50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {item.file.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.type} • {(item.file.size / 1024 / 1024).toFixed(1)}MB
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => removeFile(index)}
+                      disabled={loading}
+                      className="ml-3 p-1 text-muted-foreground hover:text-destructive transition"
+                      title="Remove file"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
-        {initialStatus.message && (
-          <p className="mb-4 text-sm text-muted-foreground">
-            {initialStatus.message}
-          </p>
-        )}
-
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-          {FILE_FIELDS.map(({ key, label }) => {
-            const isLoaded = initialStatus.loaded_files.includes(key);
-            const isMissing = initialStatus.missing_files.includes(key);
-            const isSelected = Boolean(files[key]);
-
-            return (
-              <div
-                key={key}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => handleDrop(e, key)}
-                className={`rounded-md border-2 border-dashed p-4 text-center transition cursor-pointer ${
-                  isLoaded
-                    ? "border-success/40 bg-success/5"
-                    : isSelected
-                      ? "border-primary/40 bg-primary/5"
-                      : "border-border hover:border-primary/30 hover:bg-surface/30"
-                }`}
-              >
-                <input
-                  ref={(el) => {
-                    if (el) fileInputs.current[key] = el;
-                  }}
-                  type="file"
-                  className="hidden"
-                  onChange={(e) =>
-                    handleFileSelect(key, e.target.files?.[0] || null)
-                  }
-                />
-                <button
-                  onClick={() => fileInputs.current[key]?.click()}
-                  className="w-full"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    {isLoaded ? (
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
-                          <Check className="h-4 w-4 text-success" />
-                        </div>
-                        <span className="text-xs font-medium text-success">
-                          Loaded
-                        </span>
-                      </>
-                    ) : isSelected ? (
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Upload className="h-4 w-4 text-primary" />
-                        </div>
-                        <span className="text-xs font-medium text-foreground line-clamp-1">
-                          {files[key]?.name.split(".")[0]}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-xs font-medium text-foreground">{label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          CSV
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-md bg-destructive/10 p-3 border border-destructive/20">
+          <div className="flex items-center gap-3 rounded-md bg-destructive/10 p-3 border border-destructive/20">
             <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
             <span className="text-sm text-destructive">{error}</span>
           </div>
         )}
 
-        {Object.values(files).some((f) => f) && (
+        {selectedFiles.length > 0 && (
           <button
             onClick={handleUpload}
             disabled={loading}
-            className="btn-base btn-primary w-full mt-4"
+            className="btn-base btn-primary w-full"
           >
             {loading ? (
               <>
                 <div className="w-4 h-4 rounded-full border-2 border-transparent border-t-current animate-spin" />
-                <span>Uploading...</span>
+                <span>Uploading {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""}...</span>
               </>
             ) : (
-              "Upload Files"
+              <>
+                <Upload className="h-4 w-4" />
+                <span>Upload Files</span>
+              </>
             )}
           </button>
         )}

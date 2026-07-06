@@ -56,13 +56,28 @@ export function UploadWidget({
     setError(null);
 
     try {
+      // Log file information for debugging
+      const fileInfo = Object.entries(selectedFiles).map(([key, file]) => ({
+        key,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      }));
+      console.log("Uploading files:", fileInfo);
+
       const status = await api.uploadFiles(selectedFiles);
+      console.log("Upload successful:", status);
       setFiles({});
       onUploadComplete(status);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Upload failed. Try again."
-      );
+      const errorMsg =
+        err instanceof Error ? err.message : "Upload failed. Try again.";
+      console.error("Upload error:", {
+        message: errorMsg,
+        selectedFiles: Object.keys(selectedFiles),
+        error: err,
+      });
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -74,41 +89,38 @@ export function UploadWidget({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="card-base p-6">
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold">Upload Billing Files</h3>
             {loaded > 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {loaded}/{total} files loaded
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {loaded}/{total} files
-              </span>
-              {loaded > 0 && (
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-success">
-                  <Check className="h-3 w-3 text-success-foreground" />
+              <div className="mt-2 flex items-center gap-3">
+                <div className="h-1.5 flex-1 max-w-xs rounded-full bg-surface overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${(loaded / total) * 100}%` }}
+                  />
                 </div>
-              )}
-            </div>
-            {loaded > 0 && (
-              <button
-                onClick={() => {
-                  setFiles({});
-                  setError(null);
-                  onClear?.();
-                }}
-                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted-foreground transition hover:bg-destructive/20 hover:text-destructive hover:border-destructive/50"
-                title="Clear uploads and start over"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                <p className="text-xs text-muted-foreground">
+                  {loaded}/{total} files
+                </p>
+              </div>
             )}
           </div>
+          {loaded > 0 && (
+            <button
+              onClick={() => {
+                setFiles({});
+                setError(null);
+                onClear?.();
+              }}
+              className="btn-base btn-ghost"
+              title="Clear uploads and start over"
+            >
+              <X className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs">Clear</span>
+            </button>
+          )}
         </div>
 
         {initialStatus.message && (
@@ -117,7 +129,7 @@ export function UploadWidget({
           </p>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
           {FILE_FIELDS.map(({ key, label }) => {
             const isLoaded = initialStatus.loaded_files.includes(key);
             const isMissing = initialStatus.missing_files.includes(key);
@@ -128,12 +140,12 @@ export function UploadWidget({
                 key={key}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => handleDrop(e, key)}
-                className={`rounded-lg border-2 border-dashed p-4 text-center transition ${
+                className={`rounded-md border-2 border-dashed p-4 text-center transition cursor-pointer ${
                   isLoaded
-                    ? "border-success/50 bg-success/5"
+                    ? "border-success/40 bg-success/5"
                     : isSelected
-                      ? "border-primary/50 bg-primary/5"
-                      : "border-border hover:border-primary/30"
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border hover:border-primary/30 hover:bg-surface/30"
                 }`}
               >
                 <input
@@ -153,22 +165,26 @@ export function UploadWidget({
                   <div className="flex flex-col items-center gap-2">
                     {isLoaded ? (
                       <>
-                        <Check className="h-5 w-5 text-success" />
+                        <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
+                          <Check className="h-4 w-4 text-success" />
+                        </div>
                         <span className="text-xs font-medium text-success">
                           Loaded
                         </span>
                       </>
                     ) : isSelected ? (
                       <>
-                        <Upload className="h-5 w-5 text-primary" />
-                        <span className="text-xs font-medium">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Upload className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-xs font-medium text-foreground line-clamp-1">
                           {files[key]?.name.split(".")[0]}
                         </span>
                       </>
                     ) : (
                       <>
                         <Upload className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-xs font-medium">{label}</span>
+                        <span className="text-xs font-medium text-foreground">{label}</span>
                         <span className="text-xs text-muted-foreground">
                           CSV
                         </span>
@@ -182,8 +198,8 @@ export function UploadWidget({
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3">
-            <AlertCircle className="h-4 w-4 text-destructive" />
+          <div className="mt-4 flex items-center gap-3 rounded-md bg-destructive/10 p-3 border border-destructive/20">
+            <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
             <span className="text-sm text-destructive">{error}</span>
           </div>
         )}
@@ -192,19 +208,26 @@ export function UploadWidget({
           <button
             onClick={handleUpload}
             disabled={loading}
-            className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-105 disabled:opacity-50"
+            className="btn-base btn-primary w-full mt-4"
           >
-            {loading ? "Uploading..." : "Upload Files"}
+            {loading ? (
+              <>
+                <div className="w-4 h-4 rounded-full border-2 border-transparent border-t-current animate-spin" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              "Upload Files"
+            )}
           </button>
         )}
       </div>
 
       {initialStatus.loaded_files.length > 0 && !initialStatus.ready && (
-        <div className="flex items-center gap-3 rounded-lg border border-warning/50 bg-warning/10 p-4">
-          <AlertCircle className="h-5 w-5 text-warning" />
+        <div className="flex items-center gap-3 rounded-md border border-warning/30 bg-warning/10 p-4">
+          <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
           <div className="text-sm">
             <p className="font-medium text-warning">Partial data loaded</p>
-            <p className="text-warning/70">
+            <p className="text-warning/70 text-xs mt-1">
               Missing: {initialStatus.missing_files.join(", ")}
             </p>
           </div>

@@ -130,9 +130,16 @@ class BillingEDAClient {
   async uploadFiles(
     files: Record<string, File | null>
   ): Promise<UploadStatus> {
+    const filesToUpload = Object.entries(files).filter(([, file]) => file);
+
+    if (filesToUpload.length === 0) {
+      throw new Error("No files to upload");
+    }
+
+    // Try uploading all files at once first
     const form = new FormData();
-    Object.entries(files).forEach(([key, file]) => {
-      if (file) form.append(key, file);
+    filesToUpload.forEach(([key, file]) => {
+      form.append(key, file as File);
     });
 
     const res = await fetch(`${this.baseUrl}/api/upload`, {
@@ -140,7 +147,16 @@ class BillingEDAClient {
       body: form,
     });
 
-    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+    if (!res.ok) {
+      let errorMessage = `Upload failed: ${res.statusText}`;
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.detail || errorData.error || errorMessage;
+      } catch {
+        // If response is not JSON, use statusText
+      }
+      throw new Error(errorMessage);
+    }
     return res.json();
   }
 

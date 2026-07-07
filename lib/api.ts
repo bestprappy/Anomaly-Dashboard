@@ -115,6 +115,11 @@ export interface SiteTrend {
   series: SiteTrendPoint[];
 }
 
+export interface SiteTrendBundle {
+  kwh: SiteTrend;
+  billAmount: SiteTrend;
+}
+
 export const UPLOAD_FILE_TYPES = [
   { key: "pea_bfkt", label: "PEA BFKT" },
   { key: "pea_tuc", label: "PEA TUC" },
@@ -1055,6 +1060,55 @@ class BillingEDAClient {
     );
     if (!res.ok) throw new Error(`Site trend failed: ${res.statusText}`);
     return res.json();
+  }
+
+  async getSiteTrendBundle(
+    siteId: string,
+    startMonth?: number,
+    endMonth?: number
+  ): Promise<SiteTrendBundle> {
+    const [kwhResult, billingResult] = await Promise.allSettled([
+      this.getSiteTrend(siteId, "kwh", startMonth, endMonth),
+      this.getSiteTrend(siteId, "bill_amount", startMonth, endMonth),
+    ]);
+
+    if (kwhResult.status === "rejected" && billingResult.status === "rejected") {
+      throw new Error("Site trend failed for both KWH and billing metrics");
+    }
+
+    if (kwhResult.status === "rejected") {
+      console.error("[api] KWH site trend failed", kwhResult.reason);
+    }
+
+    if (billingResult.status === "rejected") {
+      console.error("[api] Billing site trend failed", billingResult.reason);
+    }
+
+    return {
+      kwh:
+        kwhResult.status === "fulfilled"
+          ? kwhResult.value
+          : this.createEmptySiteTrend(siteId, "kwh"),
+      billAmount:
+        billingResult.status === "fulfilled"
+          ? billingResult.value
+          : this.createEmptySiteTrend(siteId, "bill_amount"),
+    };
+  }
+
+  private createEmptySiteTrend(
+    siteId: string,
+    metric: "kwh" | "bill_amount"
+  ): SiteTrend {
+    return {
+      site_id: siteId,
+      found: false,
+      provider: null,
+      company: null,
+      site_type: null,
+      metric,
+      series: [],
+    };
   }
 }
 

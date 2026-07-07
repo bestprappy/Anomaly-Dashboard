@@ -45,9 +45,13 @@ export default function DashboardPage() {
     refetchOnMount: "always",
   });
 
-  const { data: trend } = useQuery({
-    queryKey: ["siteTrend", selectedSiteId],
-    queryFn: () => api.getSiteTrend(selectedSiteId!),
+  const {
+    data: trend,
+    error: trendError,
+    isLoading: isTrendLoading,
+  } = useQuery({
+    queryKey: ["siteTrend", selectedSiteId, "kwh-billing"],
+    queryFn: () => api.getSiteTrendBundle(selectedSiteId!),
     enabled: Boolean(selectedSiteId && hasUploadedData),
   });
 
@@ -292,7 +296,30 @@ export default function DashboardPage() {
                   </div>
                   <SiteSearch />
                 </div>
-                {selectedSiteId && trend ? (
+                {selectedSiteId && isTrendLoading ? (
+                  <div className="card-base p-12 text-center">
+                    <p className="text-muted-foreground">Loading site analysis...</p>
+                  </div>
+                ) : selectedSiteId && trendError ? (
+                  <div
+                    role="alert"
+                    className="card-base border-destructive/40 bg-destructive/10 p-6"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+                      <div>
+                        <h4 className="font-semibold text-destructive">
+                          Site analysis did not load
+                        </h4>
+                        <p className="mt-1 text-sm text-destructive/80">
+                          {trendError instanceof Error
+                            ? trendError.message
+                            : "The API did not return site trend data."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : selectedSiteId && trend ? (
                   <TrendChart trend={trend} />
                 ) : (
                   <div className="card-base p-12 text-center">

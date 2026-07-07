@@ -35,8 +35,8 @@ export default function DashboardPage() {
   });
 
   const { data: trend } = useQuery({
-    queryKey: ["siteTrend", selectedSiteId],
-    queryFn: () => api.getSiteTrend(selectedSiteId!),
+    queryKey: ["siteTrend", selectedSiteId, "kwh-billing"],
+    queryFn: () => api.getSiteTrendBundle(selectedSiteId!),
     enabled: Boolean(selectedSiteId && hasUploadedData),
   });
 

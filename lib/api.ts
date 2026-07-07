@@ -1,3 +1,5 @@
+import { getAuthToken, handleUnauthorized, withAuthHeaders } from "@/lib/auth";
+
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://atonality123-test101.hf.space"
 ).replace(/\/$/, "");
@@ -196,13 +198,27 @@ export type LegacyUploadProgress = Omit<UploadProgress, "id" | "status"> & {
 class BillingEDAClient {
   private baseUrl = API_BASE_URL;
 
+  /** fetch + session bearer token; a 401 tears the session down so the
+   * password gate takes over. All API calls in this class go through it. */
+  private async authFetch(input: string, init: RequestInit = {}): Promise<Response> {
+    const res = await fetch(input, {
+      ...init,
+      headers: withAuthHeaders((init.headers as Record<string, string> | undefined) ?? {}),
+    });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Session expired. Sign in again.");
+    }
+    return res;
+  }
+
   async checkHealth() {
-    const res = await fetch(`${this.baseUrl}/api/health`);
+    const res = await this.authFetch(`${this.baseUrl}/api/health`);
     return res.json();
   }
 
   async getUploadStatus(): Promise<UploadStatus> {
-    const res = await fetch(`${this.baseUrl}/api/upload/status`);
+    const res = await this.authFetch(`${this.baseUrl}/api/upload/status`);
     if (!res.ok) throw new Error(`Upload status failed: ${res.statusText}`);
     return res.json();
   }
@@ -530,6 +546,9 @@ class BillingEDAClient {
             return;
           }
 
+          if (xhr.status === 401) {
+            handleUnauthorized();
+          }
           reject(this.createHttpError(xhr.status, xhr.statusText, xhr.responseText));
         });
       };
@@ -548,6 +567,8 @@ class BillingEDAClient {
 
       args.signal?.addEventListener("abort", abortHandler, { once: true });
       xhr.open("POST", url);
+      const token = getAuthToken();
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.timeout = 120000;
       xhr.send(form);
     });
@@ -565,7 +586,7 @@ class BillingEDAClient {
     externalSignal?.addEventListener("abort", abortHandler, { once: true });
 
     try {
-      const res = await fetch(
+      const res = await this.authFetch(
         `${this.baseUrl}/api/upload/finalize?file_id=${encodeURIComponent(fileId)}`,
         {
           method: "POST",
@@ -880,7 +901,7 @@ class BillingEDAClient {
     const form = new FormData();
     form.append(fileKey, file);
 
-    const res = await fetch(`${this.baseUrl}/api/upload`, {
+    const res = await this.authFetch(`${this.baseUrl}/api/upload`, {
       method: "POST",
       body: form,
     });
@@ -920,7 +941,7 @@ class BillingEDAClient {
     const url = `${this.baseUrl}/api/upload/chunk?${params}`;
 
     try {
-      const res = await fetch(url, {
+      const res = await this.authFetch(url, {
         method: "POST",
         body: form,
       });
@@ -956,7 +977,7 @@ class BillingEDAClient {
     const timeout = setTimeout(() => controller.abort(), 120000); // 120 second timeout
 
     try {
-      const res = await fetch(
+      const res = await this.authFetch(
         `${this.baseUrl}/api/upload/finalize?file_id=${encodeURIComponent(fileId)}`,
         {
           method: "POST",
@@ -990,7 +1011,7 @@ class BillingEDAClient {
   }
 
   async getEDASummary(): Promise<EDASummary> {
-    const res = await fetch(`${this.baseUrl}/api/eda/summary`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/summary`);
     if (res.status === 409)
       throw new Error("Data not ready. Please upload files first.");
     if (!res.ok) throw new Error(`EDA summary failed: ${res.statusText}`);
@@ -998,41 +1019,41 @@ class BillingEDAClient {
   }
 
   async getBillRange(): Promise<BillRange> {
-    const res = await fetch(`${this.baseUrl}/api/eda/bill-range`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/bill-range`);
     if (!res.ok) throw new Error(`Bill range failed: ${res.statusText}`);
     return res.json();
   }
 
   async getDuplicates(): Promise<Duplicates> {
-    const res = await fetch(`${this.baseUrl}/api/eda/duplicates`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/duplicates`);
     if (res.status === 409) throw new Error("Data not ready");
     if (!res.ok) throw new Error(`Duplicates failed: ${res.statusText}`);
     return res.json();
   }
 
   async getCommonSites(): Promise<CommonSites> {
-    const res = await fetch(`${this.baseUrl}/api/eda/common-sites`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/common-sites`);
     if (res.status === 409) throw new Error("Data not ready");
     if (!res.ok) throw new Error(`Common sites failed: ${res.statusText}`);
     return res.json();
   }
 
   async getSiteTypes(): Promise<SiteTypes> {
-    const res = await fetch(`${this.baseUrl}/api/eda/site-types`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/site-types`);
     if (res.status === 409) throw new Error("Data not ready");
     if (!res.ok) throw new Error(`Site types failed: ${res.statusText}`);
     return res.json();
   }
 
   async getMaintenanceSites(): Promise<MaintenanceData> {
-    const res = await fetch(`${this.baseUrl}/api/eda/maintenance-sites`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/maintenance-sites`);
     if (res.status === 409) throw new Error("Data not ready");
     if (!res.ok) throw new Error(`Maintenance sites failed: ${res.statusText}`);
     return res.json();
   }
 
   async getErrorRates(): Promise<ErrorRates> {
-    const res = await fetch(`${this.baseUrl}/api/eda/error-rates`);
+    const res = await this.authFetch(`${this.baseUrl}/api/eda/error-rates`);
     if (res.status === 409) throw new Error("Data not ready");
     if (!res.ok) throw new Error(`Error rates failed: ${res.statusText}`);
     return res.json();
@@ -1040,7 +1061,7 @@ class BillingEDAClient {
 
   async getSites(provider?: string): Promise<{ site_ids: string[] }> {
     const query = provider ? `?provider=${provider}` : "";
-    const res = await fetch(`${this.baseUrl}/api/sites${query}`);
+    const res = await this.authFetch(`${this.baseUrl}/api/sites${query}`);
     if (!res.ok) throw new Error(`Sites failed: ${res.statusText}`);
     return res.json();
   }
@@ -1055,7 +1076,7 @@ class BillingEDAClient {
     if (startMonth) params.append("start_month", startMonth.toString());
     if (endMonth) params.append("end_month", endMonth.toString());
 
-    const res = await fetch(
+    const res = await this.authFetch(
       `${this.baseUrl}/api/site/${encodeURIComponent(siteId)}/trend?${params}`
     );
     if (!res.ok) throw new Error(`Site trend failed: ${res.statusText}`);

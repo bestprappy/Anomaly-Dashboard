@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/lib/api";
+import { handleUnauthorized, withAuthHeaders } from "@/lib/auth";
 
 /**
  * Typed client for the ML pipeline endpoints (/api/ml/*).
@@ -190,7 +191,10 @@ function kindForStatus(status: number): MlApiErrorKind {
 async function request(path: string, init?: RequestInit): Promise<Response> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}${path}`, init);
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: withAuthHeaders((init?.headers as Record<string, string> | undefined) ?? {}),
+    });
   } catch (err) {
     console.error(`[mlApi] network failure for ${path}`, err);
     throw new MlApiError(
@@ -198,6 +202,11 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
       0,
       "network"
     );
+  }
+
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new MlApiError("Session expired. Sign in again.", 401, "server");
   }
 
   if (!res.ok) {

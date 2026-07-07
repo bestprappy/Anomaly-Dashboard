@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Radar, Home } from "lucide-react";
+import { BarChart3, Lock, Radar, Home } from "lucide-react";
 import { ThemeColorSelector } from "@/components/ThemeColorSelector";
+import { handleUnauthorized } from "@/lib/auth";
 
 interface NavItem {
   icon: React.ReactNode;
@@ -62,6 +63,18 @@ export function Sidebar() {
       </nav>
 
       <ThemeColorSelector />
+
+      {/* Ends the session: drops the bearer token and reloads into the gate */}
+      <div className="border-t border-border/40 px-3 py-3">
+        <button
+          type="button"
+          onClick={handleUnauthorized}
+          className="w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-surface/50 transition"
+        >
+          <Lock className="h-5 w-5" aria-hidden />
+          <span>Lock dashboard</span>
+        </button>
+      </div>
     </aside>
   );
 }

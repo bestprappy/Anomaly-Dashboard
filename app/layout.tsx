@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryClientProvider } from "./QueryClientProvider";
+import { PasswordGate } from "@/components/PasswordGate";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Sidebar } from "@/components/Sidebar";
 
@@ -19,8 +20,10 @@ export default function RootLayout({
       <body>
         <QueryClientProvider>
           <ThemeProvider>
-            <Sidebar />
-            <div className="pl-64">{children}</div>
+            <PasswordGate>
+              <Sidebar />
+              <div className="pl-64">{children}</div>
+            </PasswordGate>
           </ThemeProvider>
         </QueryClientProvider>
       </body>

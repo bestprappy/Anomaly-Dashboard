@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Radar, Home } from "lucide-react";
+import { ThemeColorSelector } from "@/components/ThemeColorSelector";
 
 interface NavItem {
   icon: React.ReactNode;
@@ -59,6 +60,8 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <ThemeColorSelector />
     </aside>
   );
 }

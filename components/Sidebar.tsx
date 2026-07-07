@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Radar, Settings, LogOut, Home } from "lucide-react";
+import { BarChart3, Radar, Home } from "lucide-react";
 
 interface NavItem {
   icon: React.ReactNode;
@@ -59,18 +59,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Footer */}
-      <div className="border-t border-border/40 space-y-2 px-3 py-6">
-        <button className="w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-surface/50 transition">
-          <Settings className="h-5 w-5" />
-          <span>Settings</span>
-        </button>
-        <button className="w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-surface/50 transition">
-          <LogOut className="h-5 w-5" />
-          <span>Logout</span>
-        </button>
-      </div>
     </aside>
   );
 }

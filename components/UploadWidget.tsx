@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Upload, Check, AlertCircle, X, Plus } from "lucide-react";
-import { api, UploadStatus, UploadProgress } from "@/lib/api";
+import { Upload, AlertCircle, X, Plus } from "lucide-react";
+import { api, UploadStatus, LegacyUploadProgress } from "@/lib/api";
 import { UploadProgressModal } from "./UploadProgressModal";
 
 const FILE_TYPES = [
@@ -27,13 +27,12 @@ interface UploadWidgetProps {
 
 export function UploadWidget({
   onUploadComplete,
-  onClear,
   initialStatus,
 }: UploadWidgetProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<LegacyUploadProgress | null>(null);
   const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [selectedType, setSelectedType] = useState<string>("pea_bfkt");
@@ -84,7 +83,6 @@ export function UploadWidget({
     try {
       console.log(`Uploading ${selectedFiles.length} file(s) sequentially`);
 
-      let fileIndex = 0;
       const status = await api.uploadFiles(
         filesToUpload,
         (progress) => {
@@ -92,7 +90,6 @@ export function UploadWidget({
             const currentIndex = selectedFiles.findIndex((f) => f.key === progress.fileKey) + 1;
             if (currentIndex > 0) {
               setCurrentFileIndex(currentIndex);
-              fileIndex = currentIndex;
             }
           }
           setUploadProgress(progress);

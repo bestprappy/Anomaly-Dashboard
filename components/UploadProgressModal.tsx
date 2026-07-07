@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { X, CheckCircle, AlertCircle } from "lucide-react";
 
 interface UploadProgressModalProps {
@@ -20,7 +19,6 @@ interface UploadProgressModalProps {
 
 export function UploadProgressModal({
   isOpen,
-  fileKey,
   fileName,
   fileSizeBytes,
   uploadedBytes,
@@ -32,32 +30,8 @@ export function UploadProgressModal({
   currentFileIndex = 1,
   totalFiles = 1,
 }: UploadProgressModalProps) {
-  const [uploadSpeed, setUploadSpeed] = useState(0);
-  const [remainingTime, setRemainingTime] = useState(0);
-  const [startTime] = useState(Date.now());
-  const [lastUploadedBytes, setLastUploadedBytes] = useState(0);
-  const [lastTime, setLastTime] = useState(Date.now());
-
-  // Calculate upload speed and remaining time
-  useEffect(() => {
-    const now = Date.now();
-    const timeDiffSeconds = (now - lastTime) / 1000;
-
-    if (timeDiffSeconds >= 1) {
-      const bytesDiff = uploadedBytes - lastUploadedBytes;
-      const speedMBps = bytesDiff / 1024 / 1024 / timeDiffSeconds;
-      setUploadSpeed(speedMBps);
-
-      if (speedMBps > 0) {
-        const remainingBytes = fileSizeBytes - uploadedBytes;
-        const secondsLeft = remainingBytes / (speedMBps * 1024 * 1024);
-        setRemainingTime(Math.ceil(secondsLeft));
-      }
-
-      setLastUploadedBytes(uploadedBytes);
-      setLastTime(now);
-    }
-  }, [uploadedBytes, fileSizeBytes, lastUploadedBytes, lastTime]);
+  const uploadSpeed = 0;
+  const remainingTime = 0;
 
   if (!isOpen) return null;
 

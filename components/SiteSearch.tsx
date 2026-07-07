@@ -1,46 +1,33 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { selectedSiteIdAtom, filterProviderAtom } from "@/lib/atoms";
 import { api } from "@/lib/api";
 import { Search, X } from "lucide-react";
 
 export function SiteSearch() {
-  const [selectedSiteId, setSelectedSiteId] = useAtom(selectedSiteIdAtom);
+  const [, setSelectedSiteId] = useAtom(selectedSiteIdAtom);
   const [filterProvider] = useAtom(filterProviderAtom);
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (query.length < 2) {
-      setSuggestions([]);
-      return;
-    }
+  const provider = filterProvider !== "all" ? filterProvider : undefined;
+  const { data } = useQuery({
+    queryKey: ["sites", provider],
+    queryFn: () => api.getSites(provider),
+    enabled: query.length >= 2,
+  });
 
-    const fetchSuggestions = async () => {
-      setLoading(true);
-      try {
-        const provider =
-          filterProvider !== "all" ? filterProvider : undefined;
-        const result = await api.getSites(provider);
-        const filtered = result.site_ids.filter((id) =>
-          id.toLowerCase().includes(query.toLowerCase())
-        );
-        setSuggestions(filtered.slice(0, 10));
-      } catch (err) {
-        console.error("Failed to fetch sites:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const timer = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timer);
-  }, [query, filterProvider]);
+  const suggestions = useMemo(() => {
+    if (query.length < 2) return [];
+    const normalizedQuery = query.toLowerCase();
+    return (data?.site_ids ?? [])
+      .filter((id) => id.toLowerCase().includes(normalizedQuery))
+      .slice(0, 10);
+  }, [data?.site_ids, query]);
 
   const handleSelect = (siteId: string) => {
     setSelectedSiteId(siteId);

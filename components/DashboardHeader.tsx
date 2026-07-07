@@ -15,7 +15,7 @@ export function DashboardHeader({ onUploadClick, isReady }: DashboardHeaderProps
   const [filterCompany, setFilterCompany] = useAtom(filterCompanyAtom);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 border-b border-border bg-card backdrop-blur-sm smooth-transition">
+    <header className="fixed top-0 left-64 right-0 z-40 border-b border-border bg-card backdrop-blur-sm smooth-transition">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-4">
         {/* Logo/Title */}
         <div className="flex items-center gap-3">

@@ -5,62 +5,62 @@
 
 /* ---------------------------------------------------------------------------
    Modern Premium Design System - OKLCH Color Tokens
-   Deep Navy + Emerald Accent + Sophisticated Depth
+   Neutral 80 / Accent 20 balance with Purple primary and diverse semantics
 --------------------------------------------------------------------------- */
 
 :root {
   --radius: 0.5rem;
 
-  /* Light Theme - Clean & Professional */
-  --background: oklch(0.98 0.002 120);
-  --foreground: oklch(0.15 0.008 120);
-  --surface: oklch(0.96 0.004 120);
+  /* Light Theme - 80% quiet neutral, 20% purple/accent emphasis */
+  --background: oklch(0.985 0.004 285);
+  --foreground: oklch(0.16 0.014 285);
+  --surface: oklch(0.955 0.008 285);
   --card: oklch(1 0 0);
   --elevated: oklch(1 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.008 120);
-  --card-foreground: oklch(0.15 0.008 120);
+  --popover-foreground: oklch(0.16 0.014 285);
+  --card-foreground: oklch(0.16 0.014 285);
 
-  /* Primary - Emerald (modern, tech-forward) */
-  --primary: oklch(0.58 0.15 160);
-  --primary-foreground: oklch(0.99 0.002 120);
+  /* Primary - Purple */
+  --primary: oklch(0.56 0.22 300);
+  --primary-foreground: oklch(0.99 0.004 300);
 
-  /* Supporting Neutrals */
-  --secondary: oklch(0.94 0.005 120);
-  --secondary-foreground: oklch(0.25 0.008 120);
-  --muted: oklch(0.92 0.004 120);
-  --muted-foreground: oklch(0.50 0.012 120);
-  --accent: oklch(0.72 0.14 40);
-  --accent-foreground: oklch(0.18 0.04 40);
+  /* Secondary - cool teal-blue, used sparingly under the 20% accent budget */
+  --secondary: oklch(0.93 0.035 225);
+  --secondary-foreground: oklch(0.30 0.08 225);
+  --muted: oklch(0.92 0.007 285);
+  --muted-foreground: oklch(0.48 0.018 285);
+  --accent: oklch(0.74 0.14 55);
+  --accent-foreground: oklch(0.20 0.04 55);
 
   /* Semantic Colors */
-  --success: oklch(0.62 0.16 155);
-  --success-foreground: oklch(0.99 0.008 155);
-  --warning: oklch(0.72 0.16 70);
-  --warning-foreground: oklch(0.20 0.04 70);
-  --destructive: oklch(0.58 0.20 25);
+  --success: oklch(0.62 0.17 150);
+  --success-foreground: oklch(0.99 0.008 150);
+  --warning: oklch(0.76 0.16 78);
+  --warning-foreground: oklch(0.20 0.04 78);
+  --destructive: oklch(0.59 0.21 25);
   --destructive-foreground: oklch(0.99 0.008 25);
-  --info: oklch(0.64 0.13 240);
-  --info-foreground: oklch(0.99 0.008 240);
+  --info: oklch(0.62 0.15 235);
+  --info-foreground: oklch(0.99 0.008 235);
 
   /* Borders & Input */
-  --border: oklch(0.88 0.008 120);
-  --input: oklch(0.90 0.006 120);
-  --ring: oklch(0.58 0.15 160);
+  --border: oklch(0.875 0.012 285);
+  --input: oklch(0.90 0.010 285);
+  --ring: oklch(0.56 0.22 300);
 
   /* Sidebar */
-  --sidebar: oklch(0.94 0.005 120);
-  --sidebar-foreground: oklch(0.18 0.008 120);
-  --sidebar-accent: oklch(0.58 0.15 160);
-  --sidebar-accent-foreground: oklch(0.99 0.002 120);
-  --sidebar-border: oklch(0.86 0.006 120);
+  --sidebar: oklch(0.945 0.009 285);
+  --sidebar-foreground: oklch(0.18 0.014 285);
+  --sidebar-accent: oklch(0.56 0.22 300);
+  --sidebar-accent-foreground: oklch(0.99 0.004 300);
+  --sidebar-border: oklch(0.86 0.012 285);
 
-  /* Chart Colors - Modern Palette */
-  --chart-1: oklch(0.58 0.15 160);
-  --chart-2: oklch(0.64 0.13 240);
-  --chart-3: oklch(0.72 0.14 40);
-  --chart-4: oklch(0.68 0.15 25);
-  --chart-5: oklch(0.60 0.15 330);
+  /* Chart Colors - Purple plus diverse supporting hues */
+  --chart-1: oklch(0.56 0.22 300);
+  --chart-2: oklch(0.62 0.15 235);
+  --chart-3: oklch(0.74 0.14 55);
+  --chart-4: oklch(0.62 0.17 150);
+  --chart-5: oklch(0.59 0.21 25);
 
   /* Depth & Shadows */
   --shadow-soft: 0 2px 4px oklch(0 0 0 / 4%), 0 8px 16px oklch(0 0 0 / 6%);
@@ -69,56 +69,56 @@
 }
 
 .dark {
-  /* Dark Theme - Premium Deep Navy */
-  --background: oklch(0.09 0.003 260);
-  --foreground: oklch(0.96 0.004 120);
-  --surface: oklch(0.12 0.004 260);
-  --card: oklch(0.135 0.006 260);
-  --elevated: oklch(0.155 0.008 260);
-  --popover: oklch(0.135 0.006 260);
-  --popover-foreground: oklch(0.96 0.004 120);
-  --card-foreground: oklch(0.96 0.004 120);
+  /* Dark Theme - neutral graphite with controlled purple emphasis */
+  --background: oklch(0.105 0.010 285);
+  --foreground: oklch(0.955 0.006 285);
+  --surface: oklch(0.14 0.014 285);
+  --card: oklch(0.155 0.016 285);
+  --elevated: oklch(0.18 0.018 285);
+  --popover: oklch(0.155 0.016 285);
+  --popover-foreground: oklch(0.955 0.006 285);
+  --card-foreground: oklch(0.955 0.006 285);
 
-  /* Primary - Emerald (brighter in dark) */
-  --primary: oklch(0.68 0.16 160);
-  --primary-foreground: oklch(0.10 0.003 120);
+  /* Primary - Purple (brighter in dark) */
+  --primary: oklch(0.70 0.20 300);
+  --primary-foreground: oklch(0.12 0.018 300);
 
-  /* Supporting Neutrals */
-  --secondary: oklch(0.18 0.004 120);
-  --secondary-foreground: oklch(0.92 0.008 120);
-  --muted: oklch(0.20 0.005 120);
-  --muted-foreground: oklch(0.72 0.012 120);
-  --accent: oklch(0.80 0.15 40);
-  --accent-foreground: oklch(0.08 0.003 120);
+  /* Supporting Neutrals and cool secondary */
+  --secondary: oklch(0.22 0.038 225);
+  --secondary-foreground: oklch(0.88 0.055 225);
+  --muted: oklch(0.22 0.012 285);
+  --muted-foreground: oklch(0.74 0.018 285);
+  --accent: oklch(0.82 0.15 60);
+  --accent-foreground: oklch(0.11 0.012 60);
 
   /* Semantic Colors - Dark Adjusted */
-  --success: oklch(0.72 0.17 155);
-  --success-foreground: oklch(0.09 0.003 120);
-  --warning: oklch(0.80 0.16 70);
-  --warning-foreground: oklch(0.08 0.003 120);
-  --destructive: oklch(0.68 0.20 25);
-  --destructive-foreground: oklch(0.09 0.003 120);
-  --info: oklch(0.72 0.14 240);
-  --info-foreground: oklch(0.08 0.003 120);
+  --success: oklch(0.73 0.17 150);
+  --success-foreground: oklch(0.10 0.012 150);
+  --warning: oklch(0.83 0.16 78);
+  --warning-foreground: oklch(0.12 0.012 78);
+  --destructive: oklch(0.69 0.21 25);
+  --destructive-foreground: oklch(0.11 0.012 25);
+  --info: oklch(0.73 0.15 235);
+  --info-foreground: oklch(0.10 0.012 235);
 
   /* Borders & Input */
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.68 0.16 160);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 11%);
+  --ring: oklch(0.70 0.20 300);
 
   /* Sidebar */
-  --sidebar: oklch(0.12 0.004 260);
-  --sidebar-foreground: oklch(0.94 0.006 120);
-  --sidebar-accent: oklch(0.68 0.16 160);
-  --sidebar-accent-foreground: oklch(0.10 0.003 120);
+  --sidebar: oklch(0.14 0.014 285);
+  --sidebar-foreground: oklch(0.94 0.008 285);
+  --sidebar-accent: oklch(0.70 0.20 300);
+  --sidebar-accent-foreground: oklch(0.12 0.018 300);
   --sidebar-border: oklch(1 0 0 / 10%);
 
   /* Chart Colors */
-  --chart-1: oklch(0.68 0.16 160);
-  --chart-2: oklch(0.72 0.14 240);
-  --chart-3: oklch(0.80 0.15 40);
-  --chart-4: oklch(0.75 0.16 25);
-  --chart-5: oklch(0.70 0.16 330);
+  --chart-1: oklch(0.70 0.20 300);
+  --chart-2: oklch(0.65 0.15 235); /* L capped at 0.65: bar fills must sit in the dark-mode lightness band */
+  --chart-3: oklch(0.82 0.15 60);
+  --chart-4: oklch(0.73 0.17 150);
+  --chart-5: oklch(0.69 0.21 25);
 
   /* Depth & Shadows */
   --shadow-soft: 0 2px 4px oklch(0 0 0 / 20%), 0 8px 16px oklch(0 0 0 / 28%);
@@ -331,7 +331,7 @@
   }
 
   .btn-secondary {
-    @apply bg-muted text-foreground hover:bg-muted/80 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/85 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-ghost {

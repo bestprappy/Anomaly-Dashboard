@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import gsap from "gsap";
 import { api } from "@/lib/api";
-import { UploadWidget } from "@/components/UploadWidget";
+import { UploadQueueWidget } from "@/components/UploadQueueWidget";
 import { KPICards } from "@/components/KPICards";
 import { TrendChart } from "@/components/TrendChart";
 import { SiteSearch } from "@/components/SiteSearch";
@@ -12,31 +12,32 @@ import { DataQualityTable } from "@/components/DataQualityTable";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { useAtom } from "jotai";
-import { selectedSiteIdAtom, filterProviderAtom } from "@/lib/atoms";
+import { selectedSiteIdAtom } from "@/lib/atoms";
 import { AlertCircle, Database, TrendingUp, Search } from "lucide-react";
 
 export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [uploadStatus, setUploadStatus] = useState<any>(null);
   const [showUploadSection, setShowUploadSection] = useState(false);
   const [selectedSiteId] = useAtom(selectedSiteIdAtom);
-  const [filterProvider] = useAtom(filterProviderAtom);
 
   const { data: status, refetch: refetchStatus } = useQuery({
     queryKey: ["uploadStatus"],
     queryFn: () => api.getUploadStatus(),
   });
 
+  const hasUploadedData = (status?.loaded_files.length ?? 0) > 0;
+  const hasCompleteData = status?.ready === true;
+
   const { data: summary, isLoading, error } = useQuery({
     queryKey: ["edaSummary"],
     queryFn: () => api.getEDASummary(),
-    enabled: status?.ready === true,
+    enabled: hasUploadedData,
   });
 
   const { data: trend } = useQuery({
     queryKey: ["siteTrend", selectedSiteId],
     queryFn: () => api.getSiteTrend(selectedSiteId!),
-    enabled: Boolean(selectedSiteId),
+    enabled: Boolean(selectedSiteId && hasUploadedData),
   });
 
   useEffect(() => {
@@ -52,8 +53,7 @@ export default function DashboardPage() {
     }
   }, [summary]);
 
-  const handleUploadComplete = (newStatus: any) => {
-    setUploadStatus(newStatus);
+  const handleUploadComplete = () => {
     setShowUploadSection(false);
     refetchStatus();
   };
@@ -74,7 +74,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-background">
       {/* Header */}
       <DashboardHeader
-        isReady={status?.ready}
+        isReady={hasUploadedData}
         onUploadClick={handleClearUpload}
       />
 
@@ -82,7 +82,7 @@ export default function DashboardPage() {
       <div className="pt-20 pb-16 px-4 sm:px-8">
         <div ref={containerRef} className="max-w-7xl mx-auto space-y-8">
           {/* Upload Section */}
-          {!status?.ready || showUploadSection ? (
+          {!hasUploadedData || showUploadSection ? (
             <section data-animate className="card-base p-8 space-y-6">
               <div>
                 <h2 className="text-3xl font-bold">
@@ -94,23 +94,39 @@ export default function DashboardPage() {
                     : "Upload your billing data files to begin comprehensive analysis"}
                 </p>
               </div>
-              <UploadWidget
+              <UploadQueueWidget
                 initialStatus={status}
                 onUploadComplete={handleUploadComplete}
-                onClear={handleClearUpload}
               />
             </section>
           ) : null}
 
+          {hasUploadedData && !hasCompleteData && !showUploadSection ? (
+            <section
+              data-animate
+              className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning/10 p-4"
+            >
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning" />
+              <div>
+                <h3 className="font-semibold text-warning">Partial data loaded</h3>
+                <p className="mt-1 text-sm text-warning/80">
+                  Showing analysis from {status.loaded_files.length} uploaded{" "}
+                  {status.loaded_files.length === 1 ? "file" : "files"}. Missing:{" "}
+                  {status.missing_files.join(", ")}
+                </p>
+              </div>
+            </section>
+          ) : null}
+
           {/* Loading State */}
-          {isLoading && status?.ready && (
+          {isLoading && hasUploadedData && (
             <section data-animate>
               <LoadingSkeleton />
             </section>
           )}
 
-          {/* Ready State - Dashboard */}
-          {status?.ready && summary && !isLoading ? (
+          {/* Data State - Dashboard */}
+          {hasUploadedData && summary && !isLoading ? (
             <>
               {/* KPI Cards */}
               <section data-animate className="w-full">

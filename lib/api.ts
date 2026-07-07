@@ -1,4 +1,6 @@
-const API_BASE_URL = "https://anomaly-api-1ggm.onrender.com";
+export const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://atonality123-test101.hf.space"
+).replace(/\/$/, "");
 
 export interface UploadStatus {
   loaded_files: string[];
@@ -113,16 +115,78 @@ export interface SiteTrend {
   series: SiteTrendPoint[];
 }
 
+export const UPLOAD_FILE_TYPES = [
+  { key: "pea_bfkt", label: "PEA BFKT" },
+  { key: "pea_tuc", label: "PEA TUC" },
+  { key: "mea_bfkt", label: "MEA BFKT" },
+  { key: "mea_tuc", label: "MEA TUC" },
+  { key: "mea_tmv", label: "MEA TMV" },
+] as const;
+
+export type UploadFileKey = (typeof UPLOAD_FILE_TYPES)[number]["key"];
+
+export type UploadPhase =
+  | "queued"
+  | "preparing"
+  | "chunking"
+  | "uploading"
+  | "finalizing"
+  | "complete"
+  | "error"
+  | "canceled";
+
+export interface UploadFileSelection {
+  id: string;
+  fileKey: UploadFileKey;
+  file: File;
+}
+
 export interface UploadProgress {
+  id: string;
   fileKey: string;
   fileName: string;
   fileSizeBytes: number;
   uploadedBytes: number;
   currentChunk: number;
   totalChunks: number;
-  status: "preparing" | "chunking" | "uploading" | "finalizing" | "complete" | "error";
+  status: UploadPhase;
   error?: string;
 }
+
+export interface UploadBatchProgress {
+  files: UploadProgress[];
+  overallUploadedBytes: number;
+  overallBytes: number;
+  totalFiles: number;
+  completedFiles: number;
+  failedFiles: number;
+  status: UploadPhase;
+}
+
+export interface UploadBatchResult {
+  status: UploadStatus;
+  files: UploadProgress[];
+  succeededFiles: UploadProgress[];
+  failedFiles: UploadProgress[];
+}
+
+export interface UploadOptions {
+  chunkSizeBytes?: number;
+  fileConcurrency?: number;
+  maxRetries?: number;
+  signal?: AbortSignal;
+}
+
+const DEFAULT_CHUNK_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_FILE_CONCURRENCY = 2;
+const DEFAULT_MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 600;
+
+type UploadHttpError = Error & { status?: number };
+
+export type LegacyUploadProgress = Omit<UploadProgress, "id" | "status"> & {
+  status: "preparing" | "chunking" | "uploading" | "finalizing" | "complete" | "error";
+};
 
 class BillingEDAClient {
   private baseUrl = API_BASE_URL;
@@ -140,7 +204,532 @@ class BillingEDAClient {
 
   async uploadFiles(
     files: Record<string, File | null>,
-    onProgress?: (progress: UploadProgress) => void
+    onProgress?: (progress: LegacyUploadProgress) => void
+  ): Promise<UploadStatus>;
+  async uploadFiles(
+    selections: UploadFileSelection[],
+    onProgress?: (progress: UploadBatchProgress) => void,
+    options?: UploadOptions
+  ): Promise<UploadBatchResult>;
+  async uploadFiles(
+    selectionsOrFiles: UploadFileSelection[] | Record<string, File | null>,
+    onProgress?: ((progress: UploadBatchProgress) => void) | ((progress: LegacyUploadProgress) => void),
+    options: UploadOptions = {}
+  ): Promise<UploadBatchResult | UploadStatus> {
+    if (!Array.isArray(selectionsOrFiles)) {
+      return this.uploadFilesLegacy(
+        selectionsOrFiles,
+        onProgress as ((progress: LegacyUploadProgress) => void) | undefined
+      );
+    }
+
+    const selections = selectionsOrFiles;
+    const onBatchProgress = onProgress as ((progress: UploadBatchProgress) => void) | undefined;
+    const filesToUpload = selections.filter((selection) => selection.file.size > 0);
+
+    if (filesToUpload.length === 0) {
+      throw new Error("No non-empty files to upload");
+    }
+
+    const chunkSizeBytes = options.chunkSizeBytes ?? DEFAULT_CHUNK_SIZE_BYTES;
+    const fileConcurrency = Math.max(
+      1,
+      Math.min(options.fileConcurrency ?? DEFAULT_FILE_CONCURRENCY, filesToUpload.length)
+    );
+    const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    const progressById = new Map<string, UploadProgress>();
+
+    filesToUpload.forEach((selection) => {
+      progressById.set(selection.id, this.createInitialProgress(selection, chunkSizeBytes));
+    });
+
+    const emitBatchProgress = () => {
+      const files = Array.from(progressById.values());
+      const completedFiles = files.filter((file) => file.status === "complete").length;
+      const failedFiles = files.filter(
+        (file) => file.status === "error" || file.status === "canceled"
+      ).length;
+      const hasActive = files.some((file) =>
+        ["preparing", "chunking", "uploading", "finalizing"].includes(file.status)
+      );
+      const overallBytes = files.reduce((total, file) => total + file.fileSizeBytes, 0);
+      const overallUploadedBytes = files.reduce(
+        (total, file) => total + Math.min(file.uploadedBytes, file.fileSizeBytes),
+        0
+      );
+
+      onBatchProgress?.({
+        files,
+        overallUploadedBytes,
+        overallBytes,
+        totalFiles: files.length,
+        completedFiles,
+        failedFiles,
+        status: hasActive
+          ? "uploading"
+          : failedFiles > 0
+            ? "error"
+            : completedFiles === files.length
+              ? "complete"
+              : "queued",
+      });
+    };
+
+    const updateFileProgress = (progress: UploadProgress) => {
+      progressById.set(progress.id, progress);
+      emitBatchProgress();
+    };
+
+    emitBatchProgress();
+
+    await this.uploadWithConcurrency(
+      filesToUpload,
+      fileConcurrency,
+      async (selection) => {
+        try {
+          const progress = await this.uploadFileInChunks(selection, {
+            chunkSizeBytes,
+            maxRetries,
+            signal: options.signal,
+            onProgress: updateFileProgress,
+          });
+          updateFileProgress(progress);
+        } catch (err) {
+          const current =
+            progressById.get(selection.id) ??
+            this.createInitialProgress(selection, chunkSizeBytes);
+          const isCanceled = this.isAbortError(err);
+          updateFileProgress({
+            ...current,
+            status: isCanceled ? "canceled" : "error",
+            error: isCanceled ? "Upload canceled" : this.getErrorMessage(err),
+          });
+        }
+      },
+      options.signal,
+      (selection) => {
+        const current =
+          progressById.get(selection.id) ??
+          this.createInitialProgress(selection, chunkSizeBytes);
+        updateFileProgress({
+          ...current,
+          status: "canceled",
+          error: "Upload canceled",
+        });
+      }
+    );
+
+    const status = await this.getUploadStatus();
+    const files = Array.from(progressById.values());
+    const failedFiles = files.filter(
+      (file) => file.status === "error" || file.status === "canceled"
+    );
+
+    return {
+      status,
+      files,
+      succeededFiles: files.filter((file) => file.status === "complete"),
+      failedFiles,
+    };
+  }
+
+  private createInitialProgress(
+    selection: UploadFileSelection,
+    chunkSizeBytes: number
+  ): UploadProgress {
+    return {
+      id: selection.id,
+      fileKey: selection.fileKey,
+      fileName: selection.file.name,
+      fileSizeBytes: selection.file.size,
+      uploadedBytes: 0,
+      currentChunk: 0,
+      totalChunks: Math.max(1, Math.ceil(selection.file.size / chunkSizeBytes)),
+      status: "queued",
+    };
+  }
+
+  private async uploadFileInChunks(
+    selection: UploadFileSelection,
+    options: {
+      chunkSizeBytes: number;
+      maxRetries: number;
+      signal?: AbortSignal;
+      onProgress: (progress: UploadProgress) => void;
+    }
+  ): Promise<UploadProgress> {
+    this.throwIfAborted(options.signal);
+
+    const { file, fileKey, id } = selection;
+    const totalChunks = Math.max(1, Math.ceil(file.size / options.chunkSizeBytes));
+    const fileId = this.createFileId(fileKey);
+    let latestProgress: UploadProgress = {
+      id,
+      fileKey,
+      fileName: file.name,
+      fileSizeBytes: file.size,
+      uploadedBytes: 0,
+      currentChunk: 0,
+      totalChunks,
+      status: "preparing",
+    };
+
+    const emit = (progress: UploadProgress) => {
+      latestProgress = progress;
+      options.onProgress(progress);
+    };
+
+    emit({ ...latestProgress, status: "chunking" });
+
+    for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber += 1) {
+      this.throwIfAborted(options.signal);
+
+      const start = chunkNumber * options.chunkSizeBytes;
+      const end = Math.min(start + options.chunkSizeBytes, file.size);
+      const chunk = file.slice(start, end);
+
+      emit({
+        ...latestProgress,
+        status: "uploading",
+        currentChunk: chunkNumber + 1,
+        uploadedBytes: start,
+      });
+
+      await this.uploadChunkWithRetry({
+        fileId,
+        chunkNumber,
+        totalChunks,
+        fileKey,
+        fileName: file.name,
+        fileSizeBytes: file.size,
+        chunkSizeBytes: options.chunkSizeBytes,
+        chunk,
+        maxRetries: options.maxRetries,
+        signal: options.signal,
+        onProgress: (uploadedBytes) => {
+          emit({
+            ...latestProgress,
+            status: "uploading",
+            currentChunk: chunkNumber + 1,
+            uploadedBytes: Math.min(uploadedBytes, file.size),
+          });
+        },
+      });
+    }
+
+    emit({
+      ...latestProgress,
+      status: "finalizing",
+      uploadedBytes: file.size,
+      currentChunk: totalChunks,
+    });
+
+    await this.finalizeChunkedUploadRequest(fileId, options.signal);
+
+    return {
+      ...latestProgress,
+      status: "complete",
+      uploadedBytes: file.size,
+      currentChunk: totalChunks,
+    };
+  }
+
+  private async uploadChunkWithRetry(args: {
+    fileId: string;
+    chunkNumber: number;
+    totalChunks: number;
+    fileKey: UploadFileKey;
+    fileName: string;
+    fileSizeBytes: number;
+    chunkSizeBytes: number;
+    chunk: Blob;
+    maxRetries: number;
+    signal?: AbortSignal;
+    onProgress: (uploadedBytes: number) => void;
+  }): Promise<void> {
+    for (let attempt = 0; attempt <= args.maxRetries; attempt += 1) {
+      try {
+        await this.uploadChunkRequest(args);
+        return;
+      } catch (err) {
+        if (
+          this.isAbortError(err) ||
+          attempt >= args.maxRetries ||
+          !this.isRetryableUploadError(err)
+        ) {
+          throw err;
+        }
+
+        await this.delay(RETRY_BASE_DELAY_MS * 2 ** attempt, args.signal);
+      }
+    }
+  }
+
+  private async uploadChunkRequest(args: {
+    fileId: string;
+    chunkNumber: number;
+    totalChunks: number;
+    fileKey: UploadFileKey;
+    fileName: string;
+    fileSizeBytes: number;
+    chunkSizeBytes: number;
+    chunk: Blob;
+    signal?: AbortSignal;
+    onProgress: (uploadedBytes: number) => void;
+  }): Promise<void> {
+    this.throwIfAborted(args.signal);
+
+    const form = new FormData();
+    form.append("chunk", args.chunk, `${args.fileKey}.${args.chunkNumber}.part`);
+
+    const params = new URLSearchParams({
+      file_id: args.fileId,
+      chunk_number: args.chunkNumber.toString(),
+      total_chunks: args.totalChunks.toString(),
+      file_key: args.fileKey,
+      file_name: args.fileName,
+      file_size: args.fileSizeBytes.toString(),
+      chunk_size: args.chunkSizeBytes.toString(),
+    });
+
+    const url = `${this.baseUrl}/api/upload/chunk?${params}`;
+    const chunkOffset = args.chunkNumber * args.chunkSizeBytes;
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      let settled = false;
+
+      const settle = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        args.signal?.removeEventListener("abort", abortHandler);
+        callback();
+      };
+
+      const abortHandler = () => {
+        xhr.abort();
+        settle(() => reject(this.createAbortError()));
+      };
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          args.onProgress(chunkOffset + event.loaded);
+        }
+      };
+
+      xhr.onload = () => {
+        settle(() => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            args.onProgress(chunkOffset + args.chunk.size);
+            resolve();
+            return;
+          }
+
+          reject(this.createHttpError(xhr.status, xhr.statusText, xhr.responseText));
+        });
+      };
+
+      xhr.onerror = () => {
+        settle(() => reject(this.createHttpError(0, "Network error", xhr.responseText)));
+      };
+
+      xhr.ontimeout = () => {
+        settle(() => reject(this.createHttpError(408, "Upload timed out", xhr.responseText)));
+      };
+
+      xhr.onabort = () => {
+        settle(() => reject(this.createAbortError()));
+      };
+
+      args.signal?.addEventListener("abort", abortHandler, { once: true });
+      xhr.open("POST", url);
+      xhr.timeout = 120000;
+      xhr.send(form);
+    });
+  }
+
+  private async finalizeChunkedUploadRequest(
+    fileId: string,
+    externalSignal?: AbortSignal
+  ): Promise<UploadStatus> {
+    this.throwIfAborted(externalSignal);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+    const abortHandler = () => controller.abort();
+    externalSignal?.addEventListener("abort", abortHandler, { once: true });
+
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/upload/finalize?file_id=${encodeURIComponent(fileId)}`,
+        {
+          method: "POST",
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) {
+        throw await this.createFetchError(res, "Finalize failed");
+      }
+
+      return res.json();
+    } catch (err) {
+      if (this.isAbortError(err)) {
+        if (externalSignal?.aborted) {
+          throw this.createAbortError();
+        }
+        throw new Error("Finalize request timed out after 120 seconds.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abortHandler);
+    }
+  }
+
+  private async uploadWithConcurrency(
+    selections: UploadFileSelection[],
+    concurrency: number,
+    runUpload: (selection: UploadFileSelection) => Promise<void>,
+    signal: AbortSignal | undefined,
+    onCanceledBeforeStart: (selection: UploadFileSelection) => void
+  ): Promise<void> {
+    const pending = selections.map((selection) => ({ selection }));
+    const activeKeys = new Set<UploadFileKey>();
+
+    await new Promise<void>((resolve) => {
+      let activeCount = 0;
+
+      const launchNext = () => {
+        if (signal?.aborted) {
+          pending.splice(0).forEach(({ selection }) => onCanceledBeforeStart(selection));
+        }
+
+        if (pending.length === 0 && activeCount === 0) {
+          resolve();
+          return;
+        }
+
+        while (activeCount < concurrency && pending.length > 0 && !signal?.aborted) {
+          const nextIndex = pending.findIndex(
+            ({ selection }) => !activeKeys.has(selection.fileKey)
+          );
+
+          if (nextIndex === -1) {
+            return;
+          }
+
+          const [{ selection }] = pending.splice(nextIndex, 1);
+          activeKeys.add(selection.fileKey);
+          activeCount += 1;
+
+          runUpload(selection).finally(() => {
+            activeKeys.delete(selection.fileKey);
+            activeCount -= 1;
+            launchNext();
+          });
+        }
+      };
+
+      launchNext();
+    });
+  }
+
+  private createFileId(fileKey: UploadFileKey): string {
+    const token =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+
+    return `${fileKey}-${Date.now()}-${token}`;
+  }
+
+  private createHttpError(status: number, statusText: string, responseText: string): UploadHttpError {
+    const fallback = status > 0 ? `Upload failed: ${status} ${statusText}` : statusText;
+    let message = fallback;
+
+    if (responseText) {
+      try {
+        const parsed = JSON.parse(responseText) as { detail?: string; error?: string };
+        message = parsed.detail || parsed.error || fallback;
+      } catch {
+        message = responseText;
+      }
+    }
+
+    const error = new Error(message) as UploadHttpError;
+    error.status = status;
+    return error;
+  }
+
+  private async createFetchError(res: Response, fallback: string): Promise<UploadHttpError> {
+    let message = `${fallback}: ${res.status} ${res.statusText}`;
+
+    try {
+      const parsed = (await res.json()) as { detail?: string; error?: string };
+      message = parsed.detail || parsed.error || message;
+    } catch {
+      try {
+        const text = await res.text();
+        if (text) message = text;
+      } catch {
+        // Keep the HTTP fallback.
+      }
+    }
+
+    const error = new Error(message) as UploadHttpError;
+    error.status = res.status;
+    return error;
+  }
+
+  private isRetryableUploadError(err: unknown): boolean {
+    if (!(err instanceof Error)) return false;
+    const status = (err as UploadHttpError).status;
+    return status === 0 || status === 408 || status === 429 || (typeof status === "number" && status >= 500);
+  }
+
+  private isAbortError(err: unknown): boolean {
+    return err instanceof Error && err.name === "AbortError";
+  }
+
+  private createAbortError(): Error {
+    const error = new Error("Upload canceled");
+    error.name = "AbortError";
+    return error;
+  }
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      throw this.createAbortError();
+    }
+  }
+
+  private getErrorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : "Upload failed";
+  }
+
+  private delay(ms: number, signal?: AbortSignal): Promise<void> {
+    this.throwIfAborted(signal);
+
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        signal?.removeEventListener("abort", abortHandler);
+        resolve();
+      };
+      const timeout = setTimeout(finish, ms);
+      const abortHandler = () => {
+        clearTimeout(timeout);
+        signal?.removeEventListener("abort", abortHandler);
+        reject(this.createAbortError());
+      };
+
+      signal?.addEventListener("abort", abortHandler, { once: true });
+    });
+  }
+
+  private async uploadFilesLegacy(
+    files: Record<string, File | null>,
+    onProgress?: (progress: LegacyUploadProgress) => void
   ): Promise<UploadStatus> {
     const filesToUpload = Object.entries(files).filter(([, file]) => file);
 

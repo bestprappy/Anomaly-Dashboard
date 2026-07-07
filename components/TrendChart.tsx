@@ -1,6 +1,6 @@
 "use client";
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Dot } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SiteTrend } from "@/lib/api";
 import { Building2, Zap } from "lucide-react";
 
@@ -8,9 +8,14 @@ interface TrendChartProps {
   trend: SiteTrend;
 }
 
-const CustomDot = (props: any) => {
-  const { cx, cy, fill } = props;
-  if (!cx || !cy) return null;
+interface CustomDotProps {
+  cx?: number;
+  cy?: number;
+  fill?: string;
+}
+
+const CustomDot = ({ cx, cy, fill }: CustomDotProps) => {
+  if (typeof cx !== "number" || typeof cy !== "number") return null;
   return (
     <circle
       cx={cx}

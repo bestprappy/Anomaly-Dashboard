@@ -47,7 +47,8 @@ npm run start
 ## API Integration
 
 The dashboard connects to the **Billing EDA Dashboard API**:
-- **Base URL**: `https://anomaly-api-1ggm.onrender.com`
+- **Base URL**: `https://atonality123-test101.hf.space`
+- Override with `NEXT_PUBLIC_API_BASE_URL` when deploying a different backend.
 
 ### Key Endpoints
 

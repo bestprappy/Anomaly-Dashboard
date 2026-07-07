@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { Hammer, Loader2 } from "lucide-react";
 
@@ -21,14 +21,46 @@ interface BuildModelPanelProps {
   disabled?: boolean;
 }
 
+const BUILD_ESTIMATE_SECONDS = 180;
+
+function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
 export function BuildModelPanel({ disabled }: BuildModelPanelProps) {
   const [quantiles, setQuantiles] = useAtom(quantilesAtom);
   const plan = useAtomValue(buildPlanAtom);
   const lastBuild = useAtomValue(lastBuildAtom);
   const build = useBuildModel();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!build.isPending) return;
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [build.isPending]);
+
+  const buildProgress = useMemo(() => {
+    if (!build.isPending) return 0;
+    return Math.min(
+      95,
+      Math.max(5, Math.round((elapsedSeconds / BUILD_ESTIMATE_SECONDS) * 95))
+    );
+  }, [build.isPending, elapsedSeconds]);
+
+  const remainingSeconds = Math.max(0, BUILD_ESTIMATE_SECONDS - elapsedSeconds);
 
   const handleBuild = useCallback(() => {
     if (!plan.request || build.isPending) return;
+    setElapsedSeconds(0);
     build.mutate(plan.request);
   }, [plan.request, build]);
 
@@ -94,11 +126,42 @@ export function BuildModelPanel({ disabled }: BuildModelPanelProps) {
           {build.isPending ? "Building model…" : "Build model"}
         </button>
         <p className="text-xs text-muted-foreground">
-          Fits three quantile models on the server — this can take a few minutes on the small
-          (512&nbsp;MB) instance. Leave this page open and don&apos;t re-run while one is in
-          progress.
+          Fits three quantile models on the server. Leave this page open and don&apos;t re-run
+          while one is in progress.
         </p>
       </div>
+
+      {build.isPending ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md border border-primary/20 bg-primary/10 p-4"
+        >
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium">
+            <span className="text-primary">Building quantile model</span>
+            <span className="font-mono text-foreground">{buildProgress}%</span>
+          </div>
+          <div
+            role="progressbar"
+            aria-label="Model build progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={buildProgress}
+            className="h-2 overflow-hidden rounded-full bg-background"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${buildProgress}%` }}
+            />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Elapsed {formatDuration(elapsedSeconds)} ·{" "}
+            {remainingSeconds > 0
+              ? `Estimated remaining ${formatDuration(remainingSeconds)}`
+              : "Finishing up on the server"}
+          </p>
+        </div>
+      ) : null}
 
       {build.isError ? (
         <ErrorNotice title="Model build failed" error={build.error} onRetry={handleBuild} />

@@ -86,7 +86,7 @@ export function KPICards({ errorRates, maintenanceData }: KPICardsProps) {
   return (
     <div
       ref={containerRef}
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 w-full auto-rows-max"
+      className="grid w-full auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3"
     >
       {cards.map((card, idx) => (
         <div

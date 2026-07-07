@@ -20,9 +20,17 @@ export default function DashboardPage() {
   const [showUploadSection, setShowUploadSection] = useState(false);
   const [selectedSiteId] = useAtom(selectedSiteIdAtom);
 
-  const { data: status, refetch: refetchStatus } = useQuery({
+  const {
+    data: status,
+    isLoading: isStatusLoading,
+    error: statusError,
+    refetch: refetchStatus,
+  } = useQuery({
     queryKey: ["uploadStatus"],
     queryFn: () => api.getUploadStatus(),
+    staleTime: 0,
+    retry: 2,
+    refetchOnMount: "always",
   });
 
   const hasUploadedData = (status?.loaded_files.length ?? 0) > 0;
@@ -32,6 +40,9 @@ export default function DashboardPage() {
     queryKey: ["edaSummary"],
     queryFn: () => api.getEDASummary(),
     enabled: hasUploadedData,
+    staleTime: 0,
+    retry: 1,
+    refetchOnMount: "always",
   });
 
   const { data: trend } = useQuery({
@@ -62,10 +73,45 @@ export default function DashboardPage() {
     setShowUploadSection(true);
   };
 
-  if (!status) {
+  if (!status && statusError) {
+    return (
+      <main className="min-h-screen bg-background">
+        <DashboardHeader isReady={false} onUploadClick={handleClearUpload} />
+        <div className="px-4 pb-16 pt-24 sm:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/10 p-6"
+            >
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+                <div>
+                  <h2 className="font-semibold text-destructive">Dashboard did not load</h2>
+                  <p className="mt-1 text-sm text-destructive/80">
+                    {statusError instanceof Error
+                      ? statusError.message
+                      : "The API did not return upload status."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void refetchStatus()}
+                    className="btn-base btn-secondary mt-4"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!status || isStatusLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Loading dashboard...</p>
       </div>
     );
   }

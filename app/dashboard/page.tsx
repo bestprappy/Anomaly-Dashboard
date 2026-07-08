@@ -6,19 +6,25 @@ import gsap from "gsap";
 import { api } from "@/lib/api";
 import { UploadQueueWidget } from "@/components/UploadQueueWidget";
 import { KPICards } from "@/components/KPICards";
+import { BillRangeChart } from "@/components/BillRangeChart";
+import { SiteTypesChart } from "@/components/SiteTypesChart";
 import { TrendChart } from "@/components/TrendChart";
-import { SiteSearch } from "@/components/SiteSearch";
+import { SiteSearch, SITE_SEARCH_INPUT_ID } from "@/components/SiteSearch";
+import { SiteDirectory } from "@/components/SiteDirectory";
+import { useSites } from "@/lib/useSites";
 import { DataQualityTable } from "@/components/DataQualityTable";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
-import { useAtom } from "jotai";
-import { selectedSiteIdAtom } from "@/lib/atoms";
-import { AlertCircle, Database, TrendingUp, Search } from "lucide-react";
+import { useAtom, useSetAtom } from "jotai";
+import { selectedSiteIdAtom, siteSearchAtom } from "@/lib/atoms";
+import { AlertCircle, Search } from "lucide-react";
 
 export default function DashboardPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const siteAnalysisRef = useRef<HTMLElement>(null);
   const [showUploadSection, setShowUploadSection] = useState(false);
-  const [selectedSiteId] = useAtom(selectedSiteIdAtom);
+  const [selectedSiteId, setSelectedSiteId] = useAtom(selectedSiteIdAtom);
+  const setSiteSearchQuery = useSetAtom(siteSearchAtom);
 
   const {
     data: status,
@@ -35,6 +41,15 @@ export default function DashboardPage() {
 
   const hasUploadedData = (status?.loaded_files.length ?? 0) > 0;
   const hasCompleteData = status?.ready === true;
+
+  const { data: sitesData } = useSites(undefined, hasUploadedData);
+  const exampleSites = sitesData?.site_ids.slice(0, 3) ?? [];
+
+  const handleSiteSelect = (siteId: string) => {
+    setSelectedSiteId(siteId);
+    setSiteSearchQuery(siteId);
+    siteAnalysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const { data: summary, isLoading, error } = useQuery({
     queryKey: ["edaSummary"],
@@ -64,6 +79,10 @@ export default function DashboardPage() {
         y: 30,
         stagger: 0.1,
         ease: "power2.out",
+        // Leftover inline transforms turn each section into a stacking
+        // context, which lets later sections paint over the site-search
+        // dropdown. Clear them once the entry animation finishes.
+        clearProps: "opacity,transform",
       });
     }
   }, [summary]);
@@ -191,93 +210,8 @@ export default function DashboardPage() {
 
               {/* Analysis Section */}
               <section data-animate className="grid gap-6 lg:grid-cols-2">
-                {/* Bill Range */}
-                <div className="card-base p-6">
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-md bg-blue-500/10 flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <h3 className="font-semibold text-lg">Bill Range</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {summary.bill_range.per_provider?.PEA && (
-                      <div className="p-4 rounded-md border border-border bg-surface/50">
-                        <p className="text-sm font-semibold text-foreground">PEA</p>
-                        <p className="mt-2 text-sm text-muted-foreground font-mono">
-                          {summary.bill_range.per_provider.PEA.min_month} → {" "}
-                          {summary.bill_range.per_provider.PEA.max_month}
-                        </p>
-                        <p className="text-xs text-foreground/60 mt-2">
-                          {summary.bill_range.per_provider.PEA.n_months} months
-                        </p>
-                      </div>
-                    )}
-                    {summary.bill_range.per_provider?.MEA && (
-                      <div className="p-4 rounded-md border border-border bg-surface/50">
-                        <p className="text-sm font-semibold text-foreground">MEA</p>
-                        <p className="mt-2 text-sm text-muted-foreground font-mono">
-                          {summary.bill_range.per_provider.MEA.min_month} → {" "}
-                          {summary.bill_range.per_provider.MEA.max_month}
-                        </p>
-                        <p className="text-xs text-foreground/60 mt-2">
-                          {summary.bill_range.per_provider.MEA.n_months} months
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Site Types Distribution */}
-                <div className="card-base p-6">
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-md bg-emerald-500/10 flex items-center justify-center">
-                      <Database className="h-5 w-5 text-emerald-500" />
-                    </div>
-                    <h3 className="font-semibold text-lg">Site Types</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {summary.site_types?.PEA && (
-                      <div className="p-4 rounded-md border border-border bg-surface/50">
-                        <p className="text-sm font-semibold text-foreground mb-3">PEA</p>
-                        <div className="space-y-2">
-                          {Object.entries(summary.site_types.PEA).map(
-                            ([type, count]) => (
-                              <div
-                                key={type}
-                                className="flex justify-between items-center text-xs"
-                              >
-                                <span className="text-muted-foreground">
-                                  {type}
-                                </span>
-                                <span className="font-bold text-foreground">{count}</span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {summary.site_types?.MEA && (
-                      <div className="p-4 rounded-md border border-border bg-surface/50">
-                        <p className="text-sm font-semibold text-foreground mb-3">MEA</p>
-                        <div className="space-y-2">
-                          {Object.entries(summary.site_types.MEA).map(
-                            ([type, count]) => (
-                              <div
-                                key={type}
-                                className="flex justify-between items-center text-xs"
-                              >
-                                <span className="text-muted-foreground">
-                                  {type}
-                                </span>
-                                <span className="font-bold text-foreground">{count}</span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <BillRangeChart billRange={summary.bill_range} />
+                <SiteTypesChart siteTypes={summary.site_types} />
               </section>
 
               {/* Data Quality */}
@@ -287,12 +221,17 @@ export default function DashboardPage() {
               </section>
 
               {/* Site Trend */}
-              <section data-animate className="w-full">
+              <section ref={siteAnalysisRef} data-animate className="w-full scroll-mt-24">
                 <h3 className="section-label mb-5">Site Analysis</h3>
                 <div className="card-base p-6 mb-6">
                   <div className="flex items-center gap-2 mb-3">
                     <Search className="h-4 w-4 text-muted-foreground" />
-                    <label className="text-sm font-medium text-foreground">Find a site:</label>
+                    <label
+                      htmlFor={SITE_SEARCH_INPUT_ID}
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Find a site:
+                    </label>
                   </div>
                   <SiteSearch />
                 </div>
@@ -324,10 +263,31 @@ export default function DashboardPage() {
                 ) : (
                   <div className="card-base p-12 text-center">
                     <p className="text-muted-foreground">
-                      Search for a site to view its trend analysis
+                      Search or pick a site below to view its trend analysis
                     </p>
+                    {exampleSites.length > 0 && (
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          Try one of these:
+                        </span>
+                        {exampleSites.map((siteId) => (
+                          <button
+                            key={siteId}
+                            type="button"
+                            onClick={() => handleSiteSelect(siteId)}
+                            className="cursor-pointer rounded-md border border-border bg-surface/50 px-3 py-1.5 font-mono text-xs text-primary outline-none transition-colors hover:border-primary/40 hover:bg-surface focus-visible:ring-2 focus-visible:ring-ring/40"
+                          >
+                            {siteId}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
+
+                <div className="mt-6">
+                  <SiteDirectory onSelect={handleSiteSelect} />
+                </div>
               </section>
 
               {/* Maintenance Sites */}
@@ -365,8 +325,15 @@ export default function DashboardPage() {
                             key={idx}
                             className="hover:bg-surface/50 transition-colors"
                           >
-                            <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">
-                              {site.site_id}
+                            <td className="px-6 py-4">
+                              <button
+                                type="button"
+                                onClick={() => handleSiteSelect(site.site_id)}
+                                title={`View trend for ${site.site_id}`}
+                                className="cursor-pointer rounded font-mono text-xs font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/40"
+                              >
+                                {site.site_id}
+                              </button>
                             </td>
                             <td className="px-6 py-4 text-sm font-medium">
                               {site.provider}

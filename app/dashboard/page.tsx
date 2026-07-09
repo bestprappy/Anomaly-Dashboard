@@ -13,6 +13,7 @@ import { SiteSearch, SITE_SEARCH_INPUT_ID } from "@/components/SiteSearch";
 import { SiteDirectory } from "@/components/SiteDirectory";
 import { useSites } from "@/lib/useSites";
 import { DataQualityTable } from "@/components/DataQualityTable";
+import { MaintenanceRecordsTable } from "@/components/MaintenanceRecordsTable";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { useAtom, useSetAtom } from "jotai";
@@ -293,68 +294,12 @@ export default function DashboardPage() {
               {/* Maintenance Sites */}
               <section data-animate>
                 <h3 className="section-label mb-4">Maintenance Records</h3>
-                <div className="card-base overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-surface/50">
-                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
-                          Site ID
-                        </th>
-                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
-                          Provider
-                        </th>
-                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
-                          Company
-                        </th>
-                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
-                          Type
-                        </th>
-                        <th className="px-6 py-3 text-right font-semibold text-xs uppercase text-muted-foreground">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
-                          Last Maintenance
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {summary.maintenance_sites.maintenance_sites_last_6_months
-                        .slice(0, 10)
-                        .map((site, idx) => (
-                          <tr
-                            key={idx}
-                            className="hover:bg-surface/50 transition-colors"
-                          >
-                            <td className="px-6 py-4">
-                              <button
-                                type="button"
-                                onClick={() => handleSiteSelect(site.site_id)}
-                                title={`View trend for ${site.site_id}`}
-                                className="cursor-pointer rounded font-mono text-xs font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/40"
-                              >
-                                {site.site_id}
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium">
-                              {site.provider}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium">
-                              {site.company}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                              {site.site_type}
-                            </td>
-                            <td className="px-6 py-4 text-right font-bold text-primary">
-                              {site.bill_amount.toLocaleString()}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                              {site.last_maintenance_month}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
+                <MaintenanceRecordsTable
+                  records={
+                    summary.maintenance_sites.maintenance_sites_last_6_months
+                  }
+                  onSiteSelect={handleSiteSelect}
+                />
               </section>
             </>
           ) : null}

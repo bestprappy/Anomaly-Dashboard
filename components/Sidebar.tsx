@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Lock, Radar, Home } from "lucide-react";
+import { Banknote, BarChart3, Lock, Radar, Home } from "lucide-react";
 import { ThemeColorSelector } from "@/components/ThemeColorSelector";
 import { handleUnauthorized } from "@/lib/auth";
 
@@ -19,6 +19,7 @@ export function Sidebar() {
   const navItems: NavItem[] = [
     { icon: <Home className="h-5 w-5" />, label: "Dashboard", href: "/dashboard" },
     { icon: <Radar className="h-5 w-5" />, label: "Detector", href: "/detector" },
+    // { icon: <Banknote className="h-5 w-5" />, label: "Impact", href: "/impact" },
   ];
 
   return (
@@ -63,6 +64,7 @@ export function Sidebar() {
       </nav>
 
       <ThemeColorSelector />
+      
 
       {/* Ends the session: drops the bearer token and reloads into the gate */}
       <div className="border-t border-border/40 px-3 py-3">

@@ -18,6 +18,7 @@ import {
   mlApi,
 } from "@/lib/mlApi";
 import { classifiedResultAtom, lastBuildAtom } from "@/features/detection/atoms";
+import { IMPACT_QUERY_KEY } from "@/features/impact/hooks";
 
 /**
  * TanStack Query hooks for the detection feature.
@@ -66,6 +67,8 @@ export function useBuildModel() {
       setClassified(null);
       queryClient.removeQueries({ queryKey: ML_KEYS.examplesRoot });
       queryClient.invalidateQueries({ queryKey: ML_KEYS.abnormal });
+      // Server drops the classification on rebuild, so /impact 409s again.
+      queryClient.removeQueries({ queryKey: IMPACT_QUERY_KEY });
     },
     onError: (error) => {
       console.error("[detection] model build failed", error);
@@ -106,6 +109,8 @@ export function useClassifyAnomalies() {
       setClassified(result);
       // Example plots are rendered from the classification — stale ones are wrong.
       queryClient.removeQueries({ queryKey: ML_KEYS.examplesRoot });
+      // The impact page prices whatever is classified — recompute it.
+      queryClient.invalidateQueries({ queryKey: IMPACT_QUERY_KEY });
     },
     onError: (error) => {
       console.error("[detection] classification failed", error);

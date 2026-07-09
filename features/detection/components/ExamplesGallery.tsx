@@ -10,7 +10,7 @@ import {
   examplesLimitAtom,
   examplesTypeAtom,
 } from "@/features/detection/atoms";
-import { ErrorNotice } from "@/features/detection/components/ErrorNotice";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import {
   ANOM_TYPE_DESCRIPTIONS,
   ANOM_TYPE_LABELS,

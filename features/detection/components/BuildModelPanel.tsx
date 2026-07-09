@@ -8,7 +8,7 @@ import { NumberField } from "@/components/ui/NumberField";
 import { buildPlanAtom, lastBuildAtom, quantilesAtom } from "@/features/detection/atoms";
 import { BuildMetrics } from "@/features/detection/components/BuildMetrics";
 import { DropReportSummary } from "@/features/detection/components/DropReportSummary";
-import { ErrorNotice } from "@/features/detection/components/ErrorNotice";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { useBuildModel } from "@/features/detection/hooks";
 
 /**

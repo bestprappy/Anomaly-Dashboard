@@ -6,7 +6,7 @@ import { Loader2, ScanSearch } from "lucide-react";
 
 import { dropSelectionAtom, previewRangeAtom } from "@/features/detection/atoms";
 import { DropReportSummary } from "@/features/detection/components/DropReportSummary";
-import { ErrorNotice } from "@/features/detection/components/ErrorNotice";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { MissingRateChart } from "@/features/detection/components/MissingRateChart";
 import { usePreviewMissingRate } from "@/features/detection/hooks";
 import { formatYyyymm } from "@/features/detection/format";

@@ -13,7 +13,7 @@ import {
 } from "@/features/detection/atoms";
 import { NumberField } from "@/components/ui/NumberField";
 import { AnomalyTypeBadge } from "@/features/detection/components/AnomalyTypeBadge";
-import { ErrorNotice } from "@/features/detection/components/ErrorNotice";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { SeverityBadge } from "@/features/detection/components/SeverityBadge";
 import { ANOM_TYPE_LABELS, MAX_TABLE_ROWS, SURFACED_ANOM_TYPES } from "@/features/detection/data";
 import { formatCount, formatKwh } from "@/features/detection/format";

@@ -138,6 +138,36 @@ export interface ExampleImage {
   png_base64: string;
 }
 
+/**
+ * GET /api/ml/impact — cost estimate of the classified spike_up anomalies
+ * (step_up is deliberately excluded server-side: a sustained level shift is
+ * a new baseline, not a recoverable loss). Excess kWh over the q50
+ * prediction is priced at each site's own average baht/kWh derived from its
+ * clean billing history, so PEA/MEA tariff differences are respected.
+ * Sites with no usable billing history get no rate — their anomalies count
+ * in n_anomalies but not in n_priced or the baht totals.
+ */
+export interface ProviderImpactSummary {
+  provider: string | null;
+  n_anomalies: number;
+  n_priced: number;
+  total_excess_kwh: number;
+  total_estimated_baht: number;
+}
+
+export interface MonthlyImpactSummary {
+  /** "YYYY-MM" calendar month within the model's test range. */
+  month: string;
+  n_anomalies: number;
+  total_excess_kwh: number;
+  total_estimated_baht: number;
+}
+
+export interface ImpactResponse {
+  summary_by_provider: ProviderImpactSummary[];
+  summary_by_month: MonthlyImpactSummary[];
+}
+
 export interface ExamplesResponse {
   anom_type: SurfacedAnomType;
   count: number;
@@ -290,6 +320,15 @@ class MlApiClient {
     });
     const data = await requestJson<ExamplesResponse>(`/api/ml/examples?${params}`);
     return { ...data, images: Array.isArray(data.images) ? data.images : [] };
+  }
+
+  /** 409s (not-ready) until data is uploaded, a model is built AND classified. */
+  async getImpact(): Promise<ImpactResponse> {
+    const data = await requestJson<ImpactResponse>("/api/ml/impact");
+    return {
+      summary_by_provider: Array.isArray(data.summary_by_provider) ? data.summary_by_provider : [],
+      summary_by_month: Array.isArray(data.summary_by_month) ? data.summary_by_month : [],
+    };
   }
 
   /** Server renders EVERY matching plot into a zip — heavy on a 512 MB box. */

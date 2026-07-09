@@ -1,6 +1,6 @@
 import { AlertCircle } from "lucide-react";
 
-/** Inline failure card used by every detection panel's error state. */
+/** Inline failure card used by panels' error states across features. */
 
 interface ErrorNoticeProps {
   title: string;

@@ -1,32 +1,10 @@
 import { Activity, CheckCircle2, Flag, Rows3 } from "lucide-react";
-import type { ReactNode } from "react";
 
 import type { BuildResponse } from "@/lib/mlApi";
+import { MetricTile } from "@/components/ui/MetricTile";
 import { formatCount, formatRate, formatYyyymm } from "@/features/detection/format";
 
 /** Post-build stat tiles: band coverage, flagged volume, row counts. */
-
-interface MetricTileProps {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  detail: string;
-}
-
-function MetricTile({ icon, label, value, detail }: MetricTileProps) {
-  return (
-    <div className="stat-card">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <span className="icon" aria-hidden>
-          {icon}
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="mt-3 text-2xl font-bold text-foreground">{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-    </div>
-  );
-}
 
 interface BuildMetricsProps {
   build: BuildResponse;

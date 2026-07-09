@@ -5,7 +5,7 @@ import { RefreshCw } from "lucide-react";
 
 import type { AbnormalRow } from "@/lib/mlApi";
 import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
-import { ErrorNotice } from "@/features/detection/components/ErrorNotice";
+import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { SeverityBadge } from "@/features/detection/components/SeverityBadge";
 import { MAX_TABLE_ROWS } from "@/features/detection/data";
 import { formatCount, formatKwh } from "@/features/detection/format";

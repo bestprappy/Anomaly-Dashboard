@@ -5,11 +5,13 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   Activity,
   AlertCircle,
+  BarChart3,
   ChevronDown,
   Download,
   Gauge,
   Loader2,
   PowerOff,
+  Table2,
 } from "lucide-react";
 import {
   api,
@@ -17,6 +19,7 @@ import {
   MeterPatternRecord,
   MeterPatternsData,
 } from "@/lib/api";
+import { BillPatternsChart } from "@/components/BillPatternsChart";
 import { MetricTile } from "@/components/ui/MetricTile";
 import { Tabs } from "@/components/ui/Tabs";
 import { downloadBlob } from "@/lib/csv";
@@ -24,6 +27,16 @@ import { downloadBlob } from "@/lib/csv";
 const PAGE_SIZE = 50;
 
 type PatternFilter = "all" | MeterPattern;
+type ViewMode = "table" | "chart";
+
+const VIEW_OPTIONS: ReadonlyArray<{
+  value: ViewMode;
+  label: string;
+  icon: typeof Table2;
+}> = [
+  { value: "table", label: "Table", icon: Table2 },
+  { value: "chart", label: "Chart", icon: BarChart3 },
+];
 
 interface PatternMeta {
   label: string;
@@ -93,6 +106,7 @@ export function BillPatternsTable({
   window: monthsWindow = 3,
   onSiteSelect,
 }: BillPatternsTableProps) {
+  const [view, setView] = useState<ViewMode>("table");
   const [pattern, setPattern] = useState<PatternFilter>("all");
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -145,15 +159,28 @@ export function BillPatternsTable({
     setExportError(null);
   };
 
+  const handleViewChange = (nextView: ViewMode) => {
+    setView(nextView);
+    setExportError(null);
+  };
+
+  // The chart aggregates every pattern, so its export is the full datasheet.
+  const exportPattern = view === "chart" ? undefined : patternParam;
+  const exportCount =
+    view === "chart" ? (summary?.unique_meters ?? 0) : totalRecords;
+  const exportLabel = exportPattern
+    ? PATTERN_META[exportPattern].label
+    : "All meters";
+
   const handleExport = async () => {
     setIsExporting(true);
     setExportError(null);
     try {
       const blob = await api.getMeterPatternsCsv({
         window: monthsWindow,
-        pattern: patternParam,
+        pattern: exportPattern,
       });
-      downloadBlob(`bill_patterns_${pattern}.csv`, blob);
+      downloadBlob(`bill_patterns_${exportPattern ?? "all"}.csv`, blob);
     } catch (err) {
       console.error("[BillPatternsTable] datasheet export failed", err);
       setExportError(
@@ -218,8 +245,63 @@ export function BillPatternsTable({
         />
       </div>
 
-      <Tabs value={pattern} onValueChange={handleTabChange}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div
+          role="group"
+          aria-label="Display mode"
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface p-1"
+        >
+          {VIEW_OPTIONS.map((option) => {
+            const Icon = option.icon;
+            const isActive = view === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => handleViewChange(option.value)}
+                className={`flex items-center gap-2 rounded px-4 py-2 text-sm font-medium transition-colors duration-200 focus-ring ${
+                  isActive
+                    ? "bg-card text-primary shadow-sm"
+                    : "cursor-pointer text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={() => void handleExport()}
+            disabled={isExporting || exportCount === 0}
+            className="btn-base btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden />
+            )}
+            Download {exportLabel} CSV ({exportCount.toLocaleString()})
+          </button>
+          {exportError ? (
+            <p role="alert" className="text-xs text-destructive">
+              {exportError}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {view === "chart" ? (
+        <BillPatternsChart
+          entries={summary?.counts_per_company}
+          totalMeters={summary?.unique_meters ?? 0}
+          window={monthsWindow}
+        />
+      ) : (
+        <Tabs value={pattern} onValueChange={handleTabChange}>
           <Tabs.List aria-label="Filter meters by bill pattern">
             {PATTERN_TABS.map((tab) => (
               <Tabs.Trigger key={tab.value} value={tab.value}>
@@ -227,38 +309,17 @@ export function BillPatternsTable({
               </Tabs.Trigger>
             ))}
           </Tabs.List>
-          <div className="flex flex-col items-end gap-1">
-            <button
-              type="button"
-              onClick={() => void handleExport()}
-              disabled={isExporting || totalRecords === 0}
-              className="btn-base btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Download className="h-4 w-4" aria-hidden />
-              )}
-              Download CSV ({totalRecords.toLocaleString()})
-            </button>
-            {exportError ? (
-              <p role="alert" className="text-xs text-destructive">
-                {exportError}
-              </p>
-            ) : null}
-          </div>
-        </div>
 
-        {PATTERN_TABS.map((tab) => (
-          <Tabs.Panel key={tab.value} value={tab.value} className="mt-4">
-            {records.length === 0 ? (
-              <div className="card-base p-12 text-center">
-                <p className="text-muted-foreground">
-                  No meters with this pattern in the last {monthsWindow} months
-                </p>
-              </div>
-            ) : (
-              <div className="card-base overflow-hidden">
+          {PATTERN_TABS.map((tab) => (
+            <Tabs.Panel key={tab.value} value={tab.value} className="mt-4">
+              {records.length === 0 ? (
+                <div className="card-base p-12 text-center">
+                  <p className="text-muted-foreground">
+                    No meters with this pattern in the last {monthsWindow} months
+                  </p>
+                </div>
+              ) : (
+                <div className="card-base overflow-hidden">
                 <div className="border-b border-border px-6 py-3">
                   <p className="text-sm text-muted-foreground">
                     Showing {records.length.toLocaleString()} of{" "}
@@ -370,11 +431,12 @@ export function BillPatternsTable({
                     </button>
                   </div>
                 )}
-              </div>
-            )}
-          </Tabs.Panel>
-        ))}
-      </Tabs>
+                </div>
+              )}
+            </Tabs.Panel>
+          ))}
+        </Tabs>
+      )}
     </div>
   );
 }

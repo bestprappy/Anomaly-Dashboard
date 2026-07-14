@@ -63,6 +63,11 @@
   --chart-4: oklch(0.62 0.17 150);
   --chart-5: oklch(0.59 0.21 25);
 
+  /* Bill-pattern chart marks: semantic hues; light mode reuses the tokens
+     directly (validated: CVD dE 66.5, contrast >= 3:1 on --card) */
+  --chart-shutdown: var(--destructive);
+  --chart-gap: var(--info);
+
   /* Depth & Shadows */
   --shadow-soft: 0 2px 4px oklch(0 0 0 / 4%), 0 8px 16px oklch(0 0 0 / 6%);
   --shadow-lifted: 0 4px 8px oklch(0 0 0 / 6%), 0 16px 32px oklch(0 0 0 / 10%);
@@ -128,6 +133,12 @@
   --chart-3: oklch(0.82 0.15 60);
   --chart-4: oklch(0.73 0.17 150);
   --chart-5: oklch(0.69 0.21 25);
+
+  /* Bill-pattern chart marks: same hues as --destructive / --info but
+     stepped down to the dark-mode mark band [0.48, 0.67] (validated:
+     CVD dE 61.7, contrast >= 3:1 on --card) */
+  --chart-shutdown: oklch(0.62 0.19 25);
+  --chart-gap: oklch(0.65 0.14 235);
 
   /* Depth & Shadows */
   --shadow-soft: 0 2px 4px oklch(0 0 0 / 20%), 0 8px 16px oklch(0 0 0 / 28%);

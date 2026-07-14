@@ -84,12 +84,23 @@ export interface MeterPatternRecord {
   monthly: MeterMonthlyBill[];
 }
 
+export interface MeterPatternCompanyCounts {
+  provider: string;
+  company: string | null;
+  shutdown: number;
+  gap: number;
+  normal: number;
+  total: number;
+}
+
 export interface MeterPatternsData {
   window: number;
   months: number[];
   unique_meters: number;
   unique_meters_per_provider: Record<string, number>;
   counts: Record<string, number>;
+  /** optional: older backend deploys don't send it yet */
+  counts_per_company?: MeterPatternCompanyCounts[];
   /** rows matching the current pattern filter (before limit/offset) */
   total_records: number;
   offset: number;
@@ -101,6 +112,60 @@ export interface MeterPatternsQuery {
   pattern?: MeterPattern;
   limit?: number;
   offset?: number;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0
+  );
+}
+
+function normalizeMeterPatternCompanyCounts(
+  value: unknown
+): MeterPatternCompanyCounts[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return undefined;
+
+  const entries: MeterPatternCompanyCounts[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return undefined;
+    }
+
+    const row = item as Record<string, unknown>;
+    const provider = row.provider;
+    const company = row.company;
+    const shutdown = row.shutdown;
+    const gap = row.gap;
+    const normal = row.normal;
+    const total = row.total;
+    if (
+      typeof provider !== "string" ||
+      provider.trim().length === 0 ||
+      (company !== null && typeof company !== "string") ||
+      !isNonNegativeInteger(shutdown) ||
+      !isNonNegativeInteger(gap) ||
+      !isNonNegativeInteger(normal) ||
+      !isNonNegativeInteger(total)
+    ) {
+      return undefined;
+    }
+
+    if (shutdown + gap + normal !== total) return undefined;
+
+    entries.push({
+      provider: provider.trim(),
+      company,
+      shutdown,
+      gap,
+      normal,
+      total,
+    });
+  }
+
+  return entries;
 }
 
 export interface MaintenanceData {
@@ -1105,7 +1170,33 @@ class BillingEDAClient {
     if (res.status === 409)
       throw new Error("Data not ready. Please upload files first.");
     if (!res.ok) throw new Error(`Meter patterns failed: ${res.statusText}`);
-    return res.json();
+    const payload: unknown = await res.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Meter patterns returned an invalid response.");
+    }
+
+    const response = payload as Omit<
+      MeterPatternsData,
+      "counts_per_company"
+    > & {
+      counts_per_company?: unknown;
+    };
+    const countsPerCompany = normalizeMeterPatternCompanyCounts(
+      response.counts_per_company
+    );
+    if (
+      Object.prototype.hasOwnProperty.call(response, "counts_per_company") &&
+      countsPerCompany === undefined
+    ) {
+      console.error(
+        "[ApiClient] meter patterns returned an invalid company breakdown"
+      );
+    }
+
+    return {
+      ...response,
+      counts_per_company: countsPerCompany,
+    };
   }
 
   /** Full datasheet CSV, streamed by the backend (all rows, not just the

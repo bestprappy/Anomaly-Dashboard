@@ -1,24 +1,28 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   Activity,
+  AlertCircle,
   ChevronDown,
   Download,
   Gauge,
+  Loader2,
   PowerOff,
   Wrench,
 } from "lucide-react";
 import {
+  api,
   MeterPattern,
   MeterPatternRecord,
   MeterPatternsData,
 } from "@/lib/api";
 import { MetricTile } from "@/components/ui/MetricTile";
 import { Tabs } from "@/components/ui/Tabs";
-import { buildCsv, downloadCsv } from "@/lib/csv";
+import { downloadBlob } from "@/lib/csv";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 type PatternFilter = "all" | MeterPattern;
 
@@ -44,6 +48,11 @@ const PATTERN_META: Record<MeterPattern, PatternMeta> = {
     hint: "Billed some months, missing others",
     badgeClass: "border-info/40 bg-info/10 text-info",
   },
+  normal: {
+    label: "Normal",
+    hint: "A real bill every month",
+    badgeClass: "border-border bg-surface text-muted-foreground",
+  },
 };
 
 const PATTERN_TABS: ReadonlyArray<{ value: PatternFilter; label: string }> = [
@@ -51,6 +60,7 @@ const PATTERN_TABS: ReadonlyArray<{ value: PatternFilter; label: string }> = [
   { value: "shutdown", label: "Shutdown" },
   { value: "maintenance", label: "Maintenance" },
   { value: "gap", label: "Gap (ฟันหลอ)" },
+  { value: "normal", label: "Normal" },
 ];
 
 function formatMonth(month: number): string {
@@ -82,66 +92,115 @@ function PatternBadge({ pattern }: { pattern: MeterPattern }) {
 }
 
 interface BillPatternsTableProps {
-  data: MeterPatternsData;
+  window?: number;
   onSiteSelect: (siteId: string) => void;
 }
 
-export function BillPatternsTable({ data, onSiteSelect }: BillPatternsTableProps) {
+export function BillPatternsTable({
+  window: monthsWindow = 3,
+  onSiteSelect,
+}: BillPatternsTableProps) {
   const [pattern, setPattern] = useState<PatternFilter>("all");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
-  const records = useMemo(() => data.records ?? [], [data.records]);
-  const months = useMemo(() => data.months ?? [], [data.months]);
+  const patternParam = pattern === "all" ? undefined : pattern;
 
-  const filteredRecords = useMemo(
-    () =>
-      pattern === "all"
-        ? records
-        : records.filter((record) => record.pattern === pattern),
-    [records, pattern]
+  const {
+    data,
+    error,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["meterPatterns", monthsWindow, pattern],
+    queryFn: ({ pageParam }) =>
+      api.getMeterPatterns({
+        window: monthsWindow,
+        pattern: patternParam,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: MeterPatternsData) => {
+      const nextOffset = lastPage.offset + lastPage.records.length;
+      return nextOffset < lastPage.total_records ? nextOffset : undefined;
+    },
+    staleTime: 0,
+    retry: 1,
+  });
+
+  const summary = data?.pages[0];
+  const months = summary?.months ?? [];
+  const records = useMemo(
+    () => data?.pages.flatMap((page) => page.records) ?? [],
+    [data]
   );
-
-  const visibleRecords = filteredRecords.slice(0, visibleCount);
-  const remainingCount = filteredRecords.length - visibleRecords.length;
+  const totalRecords = summary?.total_records ?? 0;
 
   const providerDetail = useMemo(() => {
-    const entries = Object.entries(data.unique_meters_per_provider ?? {});
+    const entries = Object.entries(summary?.unique_meters_per_provider ?? {});
     if (entries.length === 0) return "Across all uploaded files";
     return entries
       .map(([provider, count]) => `${provider} ${count.toLocaleString()}`)
       .join(" · ");
-  }, [data.unique_meters_per_provider]);
+  }, [summary?.unique_meters_per_provider]);
 
   const handleTabChange = (value: string) => {
     setPattern(value as PatternFilter);
-    setVisibleCount(PAGE_SIZE);
+    setExportError(null);
   };
 
-  const handleDownload = () => {
+  const handleExport = async () => {
+    setIsExporting(true);
+    setExportError(null);
     try {
-      const headers = [
-        "Meter No",
-        "Site ID",
-        "Provider",
-        "Company",
-        "Type",
-        "Pattern",
-        ...months.map(formatMonth),
-      ];
-      const rows = filteredRecords.map((record) => [
-        record.meter_no ?? "",
-        record.site_id,
-        record.provider,
-        record.company,
-        record.site_type ?? "",
-        PATTERN_META[record.pattern]?.label ?? record.pattern,
-        ...months.map((month) => amountForMonth(record, month) ?? ""),
-      ]);
-      downloadCsv(`bill_patterns_${pattern}.csv`, buildCsv(headers, rows));
-    } catch (error) {
-      console.error("[BillPatternsTable] CSV download failed", error);
+      const blob = await api.getMeterPatternsCsv({
+        window: monthsWindow,
+        pattern: patternParam,
+      });
+      downloadBlob(`bill_patterns_${pattern}.csv`, blob);
+    } catch (err) {
+      console.error("[BillPatternsTable] datasheet export failed", err);
+      setExportError(
+        err instanceof Error ? err.message : "Datasheet export failed"
+      );
+    } finally {
+      setIsExporting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="card-base p-12 text-center">
+        <p className="text-muted-foreground">Analyzing meter bill patterns...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="card-base border-destructive/40 bg-destructive/10 p-6"
+      >
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+          <div>
+            <h4 className="font-semibold text-destructive">
+              Bill patterns did not load
+            </h4>
+            <p className="mt-1 text-sm text-destructive/80">
+              {error instanceof Error
+                ? error.message
+                : "The API did not return meter pattern data."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -149,25 +208,25 @@ export function BillPatternsTable({ data, onSiteSelect }: BillPatternsTableProps
         <MetricTile
           icon={<Gauge className="h-5 w-5" />}
           label="Unique Meters"
-          value={data.unique_meters.toLocaleString()}
+          value={(summary?.unique_meters ?? 0).toLocaleString()}
           detail={providerDetail}
         />
         <MetricTile
           icon={<PowerOff className="h-5 w-5 text-destructive" />}
           label="Shutdown"
-          value={(data.counts?.shutdown ?? 0).toLocaleString()}
-          detail={`No bill for the last ${data.window} months`}
+          value={(summary?.counts?.shutdown ?? 0).toLocaleString()}
+          detail={`No bill for the last ${monthsWindow} months`}
         />
         <MetricTile
           icon={<Wrench className="h-5 w-5 text-warning" />}
           label="Maintenance Only"
-          value={(data.counts?.maintenance ?? 0).toLocaleString()}
-          detail={`Meter charge only for ${data.window} months`}
+          value={(summary?.counts?.maintenance ?? 0).toLocaleString()}
+          detail={`Meter charge only for ${monthsWindow} months`}
         />
         <MetricTile
           icon={<Activity className="h-5 w-5 text-info" />}
           label="Gap (ฟันหลอ)"
-          value={(data.counts?.gap ?? 0).toLocaleString()}
+          value={(summary?.counts?.gap ?? 0).toLocaleString()}
           detail="Billed intermittently in the window"
         />
       </div>
@@ -181,31 +240,42 @@ export function BillPatternsTable({ data, onSiteSelect }: BillPatternsTableProps
               </Tabs.Trigger>
             ))}
           </Tabs.List>
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={filteredRecords.length === 0}
-            className="btn-base btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            Export datasheet ({filteredRecords.length.toLocaleString()})
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={isExporting || totalRecords === 0}
+              className="btn-base btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
+              Download CSV ({totalRecords.toLocaleString()})
+            </button>
+            {exportError ? (
+              <p role="alert" className="text-xs text-destructive">
+                {exportError}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {PATTERN_TABS.map((tab) => (
           <Tabs.Panel key={tab.value} value={tab.value} className="mt-4">
-            {filteredRecords.length === 0 ? (
+            {records.length === 0 ? (
               <div className="card-base p-12 text-center">
                 <p className="text-muted-foreground">
-                  No meters with this pattern in the last {data.window} months
+                  No meters with this pattern in the last {monthsWindow} months
                 </p>
               </div>
             ) : (
               <div className="card-base overflow-hidden">
                 <div className="border-b border-border px-6 py-3">
                   <p className="text-sm text-muted-foreground">
-                    Showing {visibleRecords.length.toLocaleString()} of{" "}
-                    {filteredRecords.length.toLocaleString()} meters
+                    Showing {records.length.toLocaleString()} of{" "}
+                    {totalRecords.toLocaleString()} meters
                   </p>
                 </div>
 
@@ -242,7 +312,7 @@ export function BillPatternsTable({ data, onSiteSelect }: BillPatternsTableProps
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {visibleRecords.map((record, idx) => (
+                      {records.map((record, idx) => (
                         <tr
                           key={`${record.provider}-${record.meter_no ?? record.site_id}-${idx}`}
                           className="transition-colors hover:bg-surface/50"
@@ -264,7 +334,7 @@ export function BillPatternsTable({ data, onSiteSelect }: BillPatternsTableProps
                             {record.provider}
                           </td>
                           <td className="px-6 py-4 text-sm font-medium">
-                            {record.company}
+                            {record.company ?? "—"}
                           </td>
                           <td className="px-6 py-4 text-sm text-muted-foreground">
                             {record.site_type ?? "—"}
@@ -295,15 +365,21 @@ export function BillPatternsTable({ data, onSiteSelect }: BillPatternsTableProps
                   </table>
                 </div>
 
-                {remainingCount > 0 && (
+                {hasNextPage && (
                   <div className="border-t border-border">
                     <button
                       type="button"
-                      onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 px-6 py-3 text-sm font-medium text-primary outline-none transition-colors hover:bg-surface/50 focus-visible:ring-2 focus-visible:ring-ring/40"
+                      onClick={() => void fetchNextPage()}
+                      disabled={isFetchingNextPage}
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 px-6 py-3 text-sm font-medium text-primary outline-none transition-colors hover:bg-surface/50 focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <ChevronDown className="h-4 w-4" aria-hidden />
-                      Show more ({remainingCount.toLocaleString()} remaining)
+                      {isFetchingNextPage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" aria-hidden />
+                      )}
+                      Show more (
+                      {(totalRecords - records.length).toLocaleString()} remaining)
                     </button>
                   </div>
                 )}

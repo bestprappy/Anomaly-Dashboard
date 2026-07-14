@@ -62,13 +62,11 @@ export default function DashboardPage() {
     refetchOnMount: "always",
   });
 
-  const {
-    data: meterPatterns,
-    error: meterPatternsError,
-    isLoading: isMeterPatternsLoading,
-  } = useQuery({
-    queryKey: ["meterPatterns"],
-    queryFn: () => api.getMeterPatterns(),
+  // counts/unique-meter stats only (limit: 0 returns no rows) — the
+  // BillPatternsTable fetches its own paged rows per pattern tab
+  const { data: meterPatternsSummary } = useQuery({
+    queryKey: ["meterPatternsSummary"],
+    queryFn: () => api.getMeterPatterns({ limit: 0 }),
     enabled: hasUploadedData,
     staleTime: 0,
     retry: 1,
@@ -219,7 +217,7 @@ export default function DashboardPage() {
                   <KPICards
                     errorRates={summary.error_rates}
                     maintenanceData={summary.maintenance_sites}
-                    meterPatterns={meterPatterns}
+                    meterPatterns={meterPatternsSummary}
                   />
                 </div>
               </section>
@@ -309,39 +307,9 @@ export default function DashboardPage() {
               {/* Bill Patterns (last 3 months per meter) */}
               <section data-animate>
                 <h3 className="section-label mb-4">
-                  Bill Patterns — Last {meterPatterns?.window ?? 3} Months
+                  Bill Patterns — Last {meterPatternsSummary?.window ?? 3} Months
                 </h3>
-                {isMeterPatternsLoading ? (
-                  <div className="card-base p-12 text-center">
-                    <p className="text-muted-foreground">
-                      Analyzing meter bill patterns...
-                    </p>
-                  </div>
-                ) : meterPatternsError ? (
-                  <div
-                    role="alert"
-                    className="card-base border-destructive/40 bg-destructive/10 p-6"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
-                      <div>
-                        <h4 className="font-semibold text-destructive">
-                          Bill patterns did not load
-                        </h4>
-                        <p className="mt-1 text-sm text-destructive/80">
-                          {meterPatternsError instanceof Error
-                            ? meterPatternsError.message
-                            : "The API did not return meter pattern data."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : meterPatterns ? (
-                  <BillPatternsTable
-                    data={meterPatterns}
-                    onSiteSelect={handleSiteSelect}
-                  />
-                ) : null}
+                <BillPatternsTable onSiteSelect={handleSiteSelect} />
               </section>
 
               {/* Maintenance Sites */}

@@ -16,10 +16,8 @@ export function buildCsv(
   return [headers.join(","), ...lines].join("\r\n");
 }
 
-/** Download `csv` as `filename`, BOM-prefixed so Excel reads UTF-8 (Thai text). */
-export function downloadCsv(filename: string, csv: string): void {
-  const utf8Bom = String.fromCharCode(0xfeff);
-  const blob = new Blob([utf8Bom + csv], { type: "text/csv;charset=utf-8;" });
+/** Trigger a browser download of `blob` as `filename`. */
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   try {
     const link = document.createElement("a");
@@ -31,4 +29,13 @@ export function downloadCsv(filename: string, csv: string): void {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/** Download `csv` as `filename`, BOM-prefixed so Excel reads UTF-8 (Thai text). */
+export function downloadCsv(filename: string, csv: string): void {
+  const utf8Bom = String.fromCharCode(0xfeff);
+  downloadBlob(
+    filename,
+    new Blob([utf8Bom + csv], { type: "text/csv;charset=utf-8;" })
+  );
 }

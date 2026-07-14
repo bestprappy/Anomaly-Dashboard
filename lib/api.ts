@@ -67,7 +67,7 @@ export interface MaintenanceSite {
   last_maintenance_month: string;
 }
 
-export type MeterPattern = "shutdown" | "maintenance" | "gap";
+export type MeterPattern = "shutdown" | "maintenance" | "gap" | "normal";
 
 export interface MeterMonthlyBill {
   month: number;
@@ -78,7 +78,7 @@ export interface MeterPatternRecord {
   meter_no: string | null;
   site_id: string;
   provider: "PEA" | "MEA";
-  company: "BFKT" | "TUC" | "TMV";
+  company: "BFKT" | "TUC" | "TMV" | null;
   site_type: string | null;
   pattern: MeterPattern;
   monthly: MeterMonthlyBill[];
@@ -90,7 +90,17 @@ export interface MeterPatternsData {
   unique_meters: number;
   unique_meters_per_provider: Record<string, number>;
   counts: Record<string, number>;
+  /** rows matching the current pattern filter (before limit/offset) */
+  total_records: number;
+  offset: number;
   records: MeterPatternRecord[];
+}
+
+export interface MeterPatternsQuery {
+  window?: number;
+  pattern?: MeterPattern;
+  limit?: number;
+  offset?: number;
 }
 
 export interface MaintenanceData {
@@ -1080,14 +1090,36 @@ class BillingEDAClient {
     return res.json();
   }
 
-  async getMeterPatterns(window = 3): Promise<MeterPatternsData> {
+  private meterPatternsParams(query: MeterPatternsQuery): URLSearchParams {
+    const params = new URLSearchParams({ window: String(query.window ?? 3) });
+    if (query.pattern) params.set("pattern", query.pattern);
+    if (query.limit !== undefined) params.set("limit", String(query.limit));
+    if (query.offset) params.set("offset", String(query.offset));
+    return params;
+  }
+
+  async getMeterPatterns(query: MeterPatternsQuery = {}): Promise<MeterPatternsData> {
     const res = await this.authFetch(
-      `${this.baseUrl}/api/eda/meter-patterns?window=${window}`
+      `${this.baseUrl}/api/eda/meter-patterns?${this.meterPatternsParams(query)}`
     );
     if (res.status === 409)
       throw new Error("Data not ready. Please upload files first.");
     if (!res.ok) throw new Error(`Meter patterns failed: ${res.statusText}`);
     return res.json();
+  }
+
+  /** Full datasheet CSV, streamed by the backend (all rows, not just the
+   * loaded pages). Caller triggers the browser download. */
+  async getMeterPatternsCsv(
+    query: Pick<MeterPatternsQuery, "window" | "pattern"> = {}
+  ): Promise<Blob> {
+    const res = await this.authFetch(
+      `${this.baseUrl}/api/eda/meter-patterns/export?${this.meterPatternsParams(query)}`
+    );
+    if (res.status === 409)
+      throw new Error("Data not ready. Please upload files first.");
+    if (!res.ok) throw new Error(`Datasheet export failed: ${res.statusText}`);
+    return res.blob();
   }
 
   async getErrorRates(): Promise<ErrorRates> {

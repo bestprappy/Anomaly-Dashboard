@@ -16,13 +16,14 @@ import { ClassifyPanel } from "@/features/detection/components/ClassifyPanel";
 import { DropOptionsPanel } from "@/features/detection/components/DropOptionsPanel";
 import { ExamplesGallery } from "@/features/detection/components/ExamplesGallery";
 import { PreviewPanel } from "@/features/detection/components/PreviewPanel";
+import { SeverityDurationMatrix } from "@/features/detection/components/SeverityDurationMatrix";
 import { StepSection } from "@/features/detection/components/StepSection";
 import { TrainTestRangePanel } from "@/features/detection/components/TrainTestRangePanel";
 import { useAbnormalAnomalies } from "@/features/detection/hooks";
 
 /**
  * Detection page: Process (filter -> window -> preview -> build -> flags)
- * and Result (classify -> example plots). Pure composition — all logic
+ * and Result (classify -> severity/duration matrix -> example plots). Pure composition — all logic
  * lives in the detection feature.
  */
 
@@ -145,6 +146,14 @@ export default function DetectorPage() {
 
                 <StepSection
                   step={2}
+                  title="Severity and duration matrix"
+                  description="Group confirmed events into nine cells and check whether duration agrees with the spike/step intuition."
+                >
+                  <SeverityDurationMatrix />
+                </StepSection>
+
+                <StepSection
+                  step={3}
                   title="Example plots"
                   description="Server-rendered kWh trends of classified sites, with the anomaly marked."
                 >

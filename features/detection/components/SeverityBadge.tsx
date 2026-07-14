@@ -9,12 +9,12 @@ interface SeverityBadgeProps {
 
 function tierFor(severity: number): { label: string; className: string } {
   if (severity >= 3) {
-    return { label: "Extreme", className: "border-destructive/30 bg-destructive/10 text-destructive" };
+    return { label: "High", className: "border-destructive/30 bg-destructive/10 text-destructive" };
   }
   if (severity >= 1) {
-    return { label: "High", className: "border-warning/30 bg-warning/10 text-warning" };
+    return { label: "Medium", className: "border-warning/30 bg-warning/10 text-warning" };
   }
-  return { label: "Mild", className: "border-info/30 bg-info/10 text-info" };
+  return { label: "Low", className: "border-info/30 bg-info/10 text-info" };
 }
 
 export function SeverityBadge({ severity }: SeverityBadgeProps) {

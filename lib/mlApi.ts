@@ -133,6 +133,78 @@ export interface ClassifyResponse {
   rows: ClassifiedRow[];
 }
 
+export type SeverityBand = "Low" | "Medium" | "High";
+export type DurationBand = "Single month" | "2-3 months" | ">=4 months";
+
+export interface SeverityDurationAxis<TBand extends string> {
+  key: string;
+  label: string;
+  bands: TBand[];
+}
+
+export interface SeverityDurationCell {
+  duration_band: DurationBand;
+  severity_band: SeverityBand;
+  count: number;
+  /** Percentage of confirmed events in this duration row, on a 0-100 scale. */
+  row_percent: number;
+}
+
+export interface AgreementRate {
+  successes: number;
+  n: number;
+  /** Agreement rate on a 0-1 scale; null when there are no eligible events. */
+  rate: number | null;
+  ci95: [number | null, number | null];
+}
+
+export interface DurationIntuitionRate extends AgreementRate {
+  expected_type: SurfacedAnomType;
+}
+
+export interface SeverityDurationResponse {
+  axes: {
+    x: SeverityDurationAxis<SeverityBand>;
+    y: SeverityDurationAxis<DurationBand>;
+  };
+  cells: SeverityDurationCell[];
+  counts: {
+    total_events: number;
+    matrix_events: number;
+    excluded_from_matrix: number;
+    right_censored_events: number;
+    unconfirmed_duration_events: number;
+  };
+  thresholds: {
+    severity_score: {
+      formula: string;
+      medium_min: number;
+      high_min: number;
+      bands: Record<SeverityBand, string>;
+    };
+    duration: {
+      baseline_months: number;
+      minimum_baseline_months: number;
+      event_start_ratio: number;
+      elevated_ratio: number;
+      bands_months: Record<DurationBand, string>;
+    };
+    classifier: {
+      up_ratio: number;
+      down_ratio: number;
+      sustain_ratio: number;
+    };
+  };
+  duration_status_counts: Record<string, number>;
+  intuition_report: {
+    n_events_total: number;
+    n_events_in_matrix: number;
+    n_events_excluded_unconfirmed_duration: number;
+    overall_agreement: AgreementRate;
+    by_duration: Record<DurationBand, DurationIntuitionRate>;
+  };
+}
+
 export interface ExampleImage {
   site_id: string;
   png_base64: string;
@@ -310,6 +382,16 @@ class MlApiClient {
       type_counts: data.type_counts ?? {},
       surfaced_types: Array.isArray(data.surfaced_types) ? data.surfaced_types : [],
       rows: Array.isArray(data.rows) ? data.rows : [],
+    };
+  }
+
+  /** 409s (not-ready) until the current model run has been classified. */
+  async getSeverityDuration(): Promise<SeverityDurationResponse> {
+    const data = await requestJson<SeverityDurationResponse>("/api/ml/severity-duration");
+    return {
+      ...data,
+      cells: Array.isArray(data.cells) ? data.cells : [],
+      duration_status_counts: data.duration_status_counts ?? {},
     };
   }
 

@@ -13,6 +13,7 @@ import {
   MlDropOption,
   PreviewRequest,
   PreviewResponse,
+  SeverityDurationResponse,
   SurfacedAnomType,
   isNotReadyError,
   mlApi,
@@ -31,6 +32,7 @@ import { IMPACT_QUERY_KEY } from "@/features/impact/hooks";
 export const ML_KEYS = {
   dropOptions: ["ml", "drop-options"] as const,
   abnormal: ["ml", "abnormal"] as const,
+  severityDuration: ["ml", "severity-duration"] as const,
   examples: (anomType: SurfacedAnomType, limit: number) =>
     ["ml", "examples", anomType, limit] as const,
   examplesRoot: ["ml", "examples"] as const,
@@ -66,6 +68,7 @@ export function useBuildModel() {
       // A new model invalidates every downstream result.
       setClassified(null);
       queryClient.removeQueries({ queryKey: ML_KEYS.examplesRoot });
+      queryClient.removeQueries({ queryKey: ML_KEYS.severityDuration });
       queryClient.invalidateQueries({ queryKey: ML_KEYS.abnormal });
       // Server drops the classification on rebuild, so /impact 409s again.
       queryClient.removeQueries({ queryKey: IMPACT_QUERY_KEY });
@@ -109,12 +112,34 @@ export function useClassifyAnomalies() {
       setClassified(result);
       // Example plots are rendered from the classification — stale ones are wrong.
       queryClient.removeQueries({ queryKey: ML_KEYS.examplesRoot });
+      queryClient.invalidateQueries({ queryKey: ML_KEYS.severityDuration });
       // The impact page prices whatever is classified — recompute it.
       queryClient.invalidateQueries({ queryKey: IMPACT_QUERY_KEY });
     },
     onError: (error) => {
       console.error("[detection] classification failed", error);
     },
+  });
+}
+
+/**
+ * Event-level severity x duration matrix for the current classification.
+ * A 409 means there is no classification yet and resolves to the empty state.
+ */
+export function useSeverityDuration() {
+  return useQuery<SeverityDurationResponse | null, Error>({
+    queryKey: ML_KEYS.severityDuration,
+    queryFn: async () => {
+      try {
+        return await mlApi.getSeverityDuration();
+      } catch (err) {
+        if (isNotReadyError(err)) return null;
+        throw err;
+      }
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60_000,
   });
 }
 

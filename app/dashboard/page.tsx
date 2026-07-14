@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import gsap from "gsap";
 import { api } from "@/lib/api";
@@ -16,6 +16,7 @@ import { DataQualityTable } from "@/components/DataQualityTable";
 import { MaintenanceRecordsTable } from "@/components/MaintenanceRecordsTable";
 import { BillPatternsTable } from "@/components/BillPatternsTable";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { AISummary } from "@/components/AISummary";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { useAtom, useSetAtom } from "jotai";
 import { selectedSiteIdAtom, siteSearchAtom } from "@/lib/atoms";
@@ -82,6 +83,64 @@ export default function DashboardPage() {
     queryFn: () => api.getSiteTrendBundle(selectedSiteId!),
     enabled: Boolean(selectedSiteId && hasUploadedData),
   });
+
+  // Compact snapshots for the AI summary strips — memoized so each summary
+  // regenerates only when the underlying data actually changes.
+  const kpiSummaryData = useMemo(() => {
+    if (!summary) return null;
+    return {
+      error_rates: summary.error_rates,
+      maintenance_site_count: summary.maintenance_sites.maintenance_site_count,
+      unique_meters: meterPatternsSummary?.unique_meters ?? null,
+      meter_pattern_counts: meterPatternsSummary?.counts ?? null,
+    };
+  }, [summary, meterPatternsSummary]);
+
+  const dataQualitySummaryData = useMemo(() => {
+    if (!summary) return null;
+    const { duplicates } = summary;
+    return {
+      malformed_count: duplicates.malformed_count,
+      malformed_site_ids_sample: duplicates.malformed_site_ids.slice(0, 20),
+      duplicate_count: duplicates.duplicate_count,
+      duplicates_sample: duplicates.duplicate_site_ids.slice(0, 20),
+    };
+  }, [summary]);
+
+  const trendSummaryData = useMemo(() => {
+    if (!trend) return null;
+    return {
+      site_id: trend.kwh.site_id,
+      provider: trend.kwh.provider ?? trend.billAmount.provider,
+      company: trend.kwh.company ?? trend.billAmount.company,
+      site_type: trend.kwh.site_type ?? trend.billAmount.site_type,
+      kwh_series: trend.kwh.series,
+      bill_amount_series: trend.billAmount.series,
+    };
+  }, [trend]);
+
+  const billPatternsSummaryData = useMemo(() => {
+    if (!meterPatternsSummary) return null;
+    return {
+      window_months: meterPatternsSummary.window,
+      months: meterPatternsSummary.months,
+      unique_meters: meterPatternsSummary.unique_meters,
+      unique_meters_per_provider: meterPatternsSummary.unique_meters_per_provider,
+      pattern_counts: meterPatternsSummary.counts,
+      counts_per_company: meterPatternsSummary.counts_per_company ?? null,
+    };
+  }, [meterPatternsSummary]);
+
+  const maintenanceSummaryData = useMemo(() => {
+    if (!summary) return null;
+    const maintenance = summary.maintenance_sites;
+    return {
+      maintenance_site_count: maintenance.maintenance_site_count,
+      total_maintenance_rows: maintenance.total_maintenance_rows,
+      common_amounts: maintenance.value_counts.slice(0, 10),
+      recent_sites_sample: maintenance.maintenance_sites_last_6_months.slice(0, 30),
+    };
+  }, [summary]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -213,6 +272,11 @@ export default function DashboardPage() {
               {/* KPI Cards */}
               <section data-animate className="w-full">
                 <h3 className="section-label mb-5">Key Metrics</h3>
+                <AISummary
+                  title="Key Metrics (data quality error rates, meter counts, and pattern totals)"
+                  data={kpiSummaryData}
+                  className="mb-5"
+                />
                 <div className="w-full">
                   <KPICards
                     errorRates={summary.error_rates}
@@ -224,13 +288,30 @@ export default function DashboardPage() {
 
               {/* Analysis Section */}
               <section data-animate className="grid gap-6 lg:grid-cols-2">
-                <BillRangeChart billRange={summary.bill_range} />
-                <SiteTypesChart siteTypes={summary.site_types} />
+                <div className="flex flex-col gap-4">
+                  <AISummary
+                    title="Bill Range (billing data coverage by provider)"
+                    data={summary.bill_range}
+                  />
+                  <BillRangeChart billRange={summary.bill_range} />
+                </div>
+                <div className="flex flex-col gap-4">
+                  <AISummary
+                    title="Site Types (site counts by provider and site type)"
+                    data={summary.site_types}
+                  />
+                  <SiteTypesChart siteTypes={summary.site_types} />
+                </div>
               </section>
 
               {/* Data Quality */}
               <section data-animate>
                 <h3 className="section-label mb-4">Data Quality</h3>
+                <AISummary
+                  title="Data Quality (malformed and duplicate site IDs)"
+                  data={dataQualitySummaryData}
+                  className="mb-4"
+                />
                 <DataQualityTable duplicates={summary.duplicates} />
               </section>
 
@@ -273,7 +354,13 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ) : selectedSiteId && trend ? (
-                  <TrendChart trend={trend} />
+                  <div className="space-y-4">
+                    <AISummary
+                      title={`Site Trend for ${selectedSiteId} (monthly kWh and bill amount)`}
+                      data={trendSummaryData}
+                    />
+                    <TrendChart trend={trend} />
+                  </div>
                 ) : (
                   <div className="card-base p-12 text-center">
                     <p className="text-muted-foreground">
@@ -309,12 +396,22 @@ export default function DashboardPage() {
                 <h3 className="section-label mb-4">
                   Bill Patterns — Last {meterPatternsSummary?.window ?? 3} Months
                 </h3>
+                <AISummary
+                  title="Bill Patterns (per-meter shutdown, gap, and normal billing patterns)"
+                  data={billPatternsSummaryData}
+                  className="mb-4"
+                />
                 <BillPatternsTable onSiteSelect={handleSiteSelect} />
               </section>
 
               {/* Maintenance Sites */}
               <section data-animate>
                 <h3 className="section-label mb-4">Maintenance Records</h3>
+                <AISummary
+                  title="Maintenance Records (sites billed at maintenance rates in the last 6 months)"
+                  data={maintenanceSummaryData}
+                  className="mb-4"
+                />
                 <MaintenanceRecordsTable
                   records={
                     summary.maintenance_sites.maintenance_sites_last_6_months

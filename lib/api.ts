@@ -67,7 +67,7 @@ export interface MaintenanceSite {
   last_maintenance_month: string;
 }
 
-export type MeterPattern = "shutdown" | "maintenance" | "gap" | "normal";
+export type MeterPattern = "shutdown" | "gap" | "normal";
 
 export interface MeterMonthlyBill {
   month: number;

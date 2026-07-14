@@ -10,7 +10,6 @@ import {
   Gauge,
   Loader2,
   PowerOff,
-  Wrench,
 } from "lucide-react";
 import {
   api,
@@ -38,19 +37,14 @@ const PATTERN_META: Record<MeterPattern, PatternMeta> = {
     hint: "No bill at all for the whole window",
     badgeClass: "border-destructive/40 bg-destructive/10 text-destructive",
   },
-  maintenance: {
-    label: "Maintenance",
-    hint: "Only the meter charge (<200฿) every month",
-    badgeClass: "border-warning/40 bg-warning/10 text-warning",
-  },
   gap: {
-    label: "Gap (ฟันหลอ)",
+    label: "Gap",
     hint: "Billed some months, missing others",
     badgeClass: "border-info/40 bg-info/10 text-info",
   },
   normal: {
     label: "Normal",
-    hint: "A real bill every month",
+    hint: "Billed every month",
     badgeClass: "border-border bg-surface text-muted-foreground",
   },
 };
@@ -58,8 +52,7 @@ const PATTERN_META: Record<MeterPattern, PatternMeta> = {
 const PATTERN_TABS: ReadonlyArray<{ value: PatternFilter; label: string }> = [
   { value: "all", label: "All" },
   { value: "shutdown", label: "Shutdown" },
-  { value: "maintenance", label: "Maintenance" },
-  { value: "gap", label: "Gap (ฟันหลอ)" },
+  { value: "gap", label: "Gap" },
   { value: "normal", label: "Normal" },
 ];
 
@@ -204,7 +197,7 @@ export function BillPatternsTable({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <MetricTile
           icon={<Gauge className="h-5 w-5" />}
           label="Unique Meters"
@@ -218,14 +211,8 @@ export function BillPatternsTable({
           detail={`No bill for the last ${monthsWindow} months`}
         />
         <MetricTile
-          icon={<Wrench className="h-5 w-5 text-warning" />}
-          label="Maintenance Only"
-          value={(summary?.counts?.maintenance ?? 0).toLocaleString()}
-          detail={`Meter charge only for ${monthsWindow} months`}
-        />
-        <MetricTile
           icon={<Activity className="h-5 w-5 text-info" />}
-          label="Gap (ฟันหลอ)"
+          label="Gap"
           value={(summary?.counts?.gap ?? 0).toLocaleString()}
           detail="Billed intermittently in the window"
         />

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { ChevronDown, Download } from "lucide-react";
 import { MaintenanceSite } from "@/lib/api";
+import { buildCsv, downloadCsv } from "@/lib/csv";
 
 const PAGE_SIZE = 10;
 
 const CSV_HEADERS = [
   "Site ID",
+  "Meter No",
   "Provider",
   "Company",
   "Type",
@@ -15,28 +17,17 @@ const CSV_HEADERS = [
   "Last Maintenance",
 ] as const;
 
-function escapeCsvValue(value: string | number): string {
-  const text = String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
-function buildCsv(records: MaintenanceSite[]): string {
-  const rows = records.map((record) =>
-    [
-      record.site_id,
-      record.provider,
-      record.company,
-      record.site_type,
-      record.bill_amount,
-      record.last_maintenance_month,
-    ]
-      .map(escapeCsvValue)
-      .join(",")
-  );
-  return [CSV_HEADERS.join(","), ...rows].join("\r\n");
+function buildMaintenanceCsv(records: MaintenanceSite[]): string {
+  const rows = records.map((record) => [
+    record.site_id,
+    record.meter_no ?? "",
+    record.provider,
+    record.company,
+    record.site_type,
+    record.bill_amount,
+    record.last_maintenance_month,
+  ]);
+  return buildCsv(CSV_HEADERS, rows);
 }
 
 interface MaintenanceRecordsTableProps {
@@ -55,22 +46,7 @@ export function MaintenanceRecordsTable({
 
   const handleDownload = () => {
     try {
-      // UTF-8 BOM keeps Excel from mangling non-ASCII site names.
-      const utf8Bom = String.fromCharCode(0xfeff);
-      const blob = new Blob([utf8Bom + buildCsv(records)], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      try {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "maintenance_records.csv";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } finally {
-        URL.revokeObjectURL(url);
-      }
+      downloadCsv("maintenance_records.csv", buildMaintenanceCsv(records));
     } catch (error) {
       console.error("[MaintenanceRecordsTable] CSV download failed", error);
     }
@@ -108,6 +84,9 @@ export function MaintenanceRecordsTable({
                 Site ID
               </th>
               <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
+                Meter No
+              </th>
+              <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
                 Provider
               </th>
               <th className="px-6 py-3 text-left font-semibold text-xs uppercase text-muted-foreground">
@@ -136,6 +115,9 @@ export function MaintenanceRecordsTable({
                   >
                     {site.site_id}
                   </button>
+                </td>
+                <td className="px-6 py-4 font-mono text-xs font-semibold">
+                  {site.meter_no ?? "—"}
                 </td>
                 <td className="px-6 py-4 text-sm font-medium">{site.provider}</td>
                 <td className="px-6 py-4 text-sm font-medium">{site.company}</td>

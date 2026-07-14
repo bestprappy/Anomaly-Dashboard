@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { ErrorRates, MaintenanceData } from "@/lib/api";
-import { TrendingUp, AlertCircle, Zap, Settings, BarChart3, AlertTriangle } from "lucide-react";
+import { ErrorRates, MaintenanceData, MeterPatternsData } from "@/lib/api";
+import { TrendingUp, AlertCircle, Zap, Settings, BarChart3, AlertTriangle, Gauge } from "lucide-react";
 
 interface KPICard {
   label: string;
@@ -15,9 +15,10 @@ interface KPICard {
 interface KPICardsProps {
   errorRates: ErrorRates;
   maintenanceData: MaintenanceData;
+  meterPatterns?: MeterPatternsData;
 }
 
-export function KPICards({ errorRates, maintenanceData }: KPICardsProps) {
+export function KPICards({ errorRates, maintenanceData, meterPatterns }: KPICardsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const cards: KPICard[] = [
@@ -27,6 +28,16 @@ export function KPICards({ errorRates, maintenanceData }: KPICardsProps) {
       icon: <BarChart3 className="w-5 h-5" />,
       accentColor: "text-blue-500",
     },
+    ...(meterPatterns
+      ? [
+          {
+            label: "Unique Meters",
+            value: meterPatterns.unique_meters.toLocaleString(),
+            icon: <Gauge className="w-5 h-5" />,
+            accentColor: "text-violet-500",
+          },
+        ]
+      : []),
     {
       label: "Zero Bill Rate",
       value: (errorRates.zero_bill_rate * 100).toFixed(2) + "%",

@@ -14,6 +14,7 @@ import { SiteDirectory } from "@/components/SiteDirectory";
 import { useSites } from "@/lib/useSites";
 import { DataQualityTable } from "@/components/DataQualityTable";
 import { MaintenanceRecordsTable } from "@/components/MaintenanceRecordsTable";
+import { BillPatternsTable } from "@/components/BillPatternsTable";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { useAtom, useSetAtom } from "jotai";
@@ -55,6 +56,19 @@ export default function DashboardPage() {
   const { data: summary, isLoading, error } = useQuery({
     queryKey: ["edaSummary"],
     queryFn: () => api.getEDASummary(),
+    enabled: hasUploadedData,
+    staleTime: 0,
+    retry: 1,
+    refetchOnMount: "always",
+  });
+
+  const {
+    data: meterPatterns,
+    error: meterPatternsError,
+    isLoading: isMeterPatternsLoading,
+  } = useQuery({
+    queryKey: ["meterPatterns"],
+    queryFn: () => api.getMeterPatterns(),
     enabled: hasUploadedData,
     staleTime: 0,
     retry: 1,
@@ -205,6 +219,7 @@ export default function DashboardPage() {
                   <KPICards
                     errorRates={summary.error_rates}
                     maintenanceData={summary.maintenance_sites}
+                    meterPatterns={meterPatterns}
                   />
                 </div>
               </section>
@@ -289,6 +304,44 @@ export default function DashboardPage() {
                 <div className="mt-6">
                   <SiteDirectory onSelect={handleSiteSelect} />
                 </div>
+              </section>
+
+              {/* Bill Patterns (last 3 months per meter) */}
+              <section data-animate>
+                <h3 className="section-label mb-4">
+                  Bill Patterns — Last {meterPatterns?.window ?? 3} Months
+                </h3>
+                {isMeterPatternsLoading ? (
+                  <div className="card-base p-12 text-center">
+                    <p className="text-muted-foreground">
+                      Analyzing meter bill patterns...
+                    </p>
+                  </div>
+                ) : meterPatternsError ? (
+                  <div
+                    role="alert"
+                    className="card-base border-destructive/40 bg-destructive/10 p-6"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+                      <div>
+                        <h4 className="font-semibold text-destructive">
+                          Bill patterns did not load
+                        </h4>
+                        <p className="mt-1 text-sm text-destructive/80">
+                          {meterPatternsError instanceof Error
+                            ? meterPatternsError.message
+                            : "The API did not return meter pattern data."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : meterPatterns ? (
+                  <BillPatternsTable
+                    data={meterPatterns}
+                    onSiteSelect={handleSiteSelect}
+                  />
+                ) : null}
               </section>
 
               {/* Maintenance Sites */}

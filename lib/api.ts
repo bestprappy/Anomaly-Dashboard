@@ -58,11 +58,39 @@ export interface SiteTypes {
 
 export interface MaintenanceSite {
   site_id: string;
+  /** optional: older backend deploys don't send it yet */
+  meter_no?: string | null;
   provider: "PEA" | "MEA";
   company: "BFKT" | "TUC" | "TMV";
   site_type: string;
   bill_amount: number;
   last_maintenance_month: string;
+}
+
+export type MeterPattern = "shutdown" | "maintenance" | "gap";
+
+export interface MeterMonthlyBill {
+  month: number;
+  bill_amount: number | null;
+}
+
+export interface MeterPatternRecord {
+  meter_no: string | null;
+  site_id: string;
+  provider: "PEA" | "MEA";
+  company: "BFKT" | "TUC" | "TMV";
+  site_type: string | null;
+  pattern: MeterPattern;
+  monthly: MeterMonthlyBill[];
+}
+
+export interface MeterPatternsData {
+  window: number;
+  months: number[];
+  unique_meters: number;
+  unique_meters_per_provider: Record<string, number>;
+  counts: Record<string, number>;
+  records: MeterPatternRecord[];
 }
 
 export interface MaintenanceData {
@@ -1049,6 +1077,16 @@ class BillingEDAClient {
     const res = await this.authFetch(`${this.baseUrl}/api/eda/maintenance-sites`);
     if (res.status === 409) throw new Error("Data not ready");
     if (!res.ok) throw new Error(`Maintenance sites failed: ${res.statusText}`);
+    return res.json();
+  }
+
+  async getMeterPatterns(window = 3): Promise<MeterPatternsData> {
+    const res = await this.authFetch(
+      `${this.baseUrl}/api/eda/meter-patterns?window=${window}`
+    );
+    if (res.status === 409)
+      throw new Error("Data not ready. Please upload files first.");
+    if (!res.ok) throw new Error(`Meter patterns failed: ${res.statusText}`);
     return res.json();
   }
 

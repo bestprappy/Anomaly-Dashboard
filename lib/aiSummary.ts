@@ -1,8 +1,10 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 
-/** Free-tier Gemini model used for section summaries. */
-export const AI_SUMMARY_MODEL_ID = "gemini-2.5-flash-lite";
+/** Free-tier Gemini model used for section summaries. The `-latest` alias
+ * tracks the newest flash-lite model, so it keeps working when Google
+ * retires a pinned version (e.g. gemini-2.5-flash-lite for new projects). */
+export const AI_SUMMARY_MODEL_ID = "gemini-flash-lite-latest";
 
 // Static export runs entirely in the browser, so the key must be a
 // NEXT_PUBLIC_ variable inlined at build time.

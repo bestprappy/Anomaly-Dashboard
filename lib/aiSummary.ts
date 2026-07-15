@@ -23,7 +23,8 @@ const SYSTEM_PROMPT = [
   "Months are coded as YYYYMM (e.g. 202401 = Jan 2024) and bill amounts are in Thai Baht.",
   "Given a dashboard section name and its underlying data as JSON, write a 2-3 sentence plain-English summary.",
   "Lead with the most important insight or anomaly and include concrete numbers.",
-  "Do not describe the JSON structure, repeat the section name, or use markdown formatting.",
+  "Wrap the most important numbers and findings in **double asterisks** so the UI can highlight them.",
+  "Do not use any other markdown formatting, describe the JSON structure, or repeat the section name.",
 ].join(" ");
 
 function toPromptPayload(data: unknown): string {

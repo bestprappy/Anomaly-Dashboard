@@ -56,20 +56,33 @@ function getFileTypeLabel(fileKey: UploadFileKey): string {
 
 function inferFileKey(fileName: string, usedKeys: Set<UploadFileKey>): UploadFileKey {
   const normalized = fileName.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const directMatch = UPLOAD_FILE_TYPES.find((type) =>
-    normalized.includes(type.key.replace("_", ""))
-  );
+  const providerMatches = UPLOAD_FILE_TYPES
+    .map((type) => {
+      const [provider, company] = type.key.split("_");
+      return {
+        type,
+        companyIndex: normalized.indexOf(company),
+        providerIndex: normalized.indexOf(provider),
+      };
+    })
+    .filter((match) => match.providerIndex >= 0 && match.companyIndex >= 0)
+    // Prefer the company named first in the filename. This correctly treats
+    // `MEA_..._TMV(TUC)_...` as TMV rather than the parenthetical TUC tag.
+    .sort((left, right) =>
+      left.companyIndex - right.companyIndex || left.providerIndex - right.providerIndex
+    );
 
-  if (directMatch) return directMatch.key;
-
-  const providerMatch = UPLOAD_FILE_TYPES.find((type) => {
-    const [provider, company] = type.key.split("_");
-    return normalized.includes(provider) && normalized.includes(company);
-  });
-
-  if (providerMatch) return providerMatch.key;
+  if (providerMatches.length > 0) return providerMatches[0].type.key;
 
   return UPLOAD_FILE_TYPES.find((type) => !usedKeys.has(type.key))?.key ?? "pea_bfkt";
+}
+
+function getDuplicateFileKeys(items: FileQueueItem[]): UploadFileKey[] {
+  const counts = new Map<UploadFileKey, number>();
+  items.forEach((item) => counts.set(item.fileKey, (counts.get(item.fileKey) ?? 0) + 1));
+  return Array.from(counts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([fileKey]) => fileKey);
 }
 
 function createQueueItem(file: File, fileKey: UploadFileKey): FileQueueItem {
@@ -227,6 +240,12 @@ export function UploadQueueWidget({
     ["queued", "error", "canceled"].includes(item.status)
   );
   const hasQueuedFiles = uploadableFiles.length > 0;
+  const duplicateFileKeys = useMemo(() => getDuplicateFileKeys(selectedFiles), [selectedFiles]);
+  const duplicateAssignmentMessage = duplicateFileKeys.length > 0
+    ? `Assign each billing type to only one file. Duplicates: ${duplicateFileKeys
+        .map(getFileTypeLabel)
+        .join(", ")}.`
+    : null;
 
   const overallProgress = useMemo(() => {
     const totalBytes = selectedFiles.reduce((total, item) => total + item.file.size, 0);
@@ -273,15 +292,22 @@ export function UploadQueueWidget({
           : item
       )
     );
+    setError(null);
   };
 
   const removeFile = (id: string) => {
     setSelectedFiles((current) => current.filter((item) => item.id !== id));
+    setError(null);
   };
 
   const handleUpload = () => {
     if (selectedFiles.length === 0) {
       setError("Please add at least one file.");
+      return;
+    }
+
+    if (duplicateAssignmentMessage) {
+      setError(duplicateAssignmentMessage);
       return;
     }
 
@@ -425,7 +451,13 @@ export function UploadQueueWidget({
                         aria-label={`Billing type for ${item.file.name}`}
                       >
                         {UPLOAD_FILE_TYPES.map((type) => (
-                          <option key={type.key} value={type.key}>
+                          <option
+                            key={type.key}
+                            value={type.key}
+                            disabled={selectedFiles.some(
+                              (other) => other.id !== item.id && other.fileKey === type.key
+                            )}
+                          >
                             {type.label}
                           </option>
                         ))}
@@ -515,7 +547,7 @@ export function UploadQueueWidget({
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={loading || !hasQueuedFiles}
+                disabled={loading || !hasQueuedFiles || duplicateFileKeys.length > 0}
                 className="btn-base btn-primary"
               >
                 {loading ? (
@@ -532,10 +564,12 @@ export function UploadQueueWidget({
         </div>
       )}
 
-      {error && (
+      {(error || duplicateAssignmentMessage) && (
         <div className="flex items-start gap-3 rounded-md bg-destructive/10 p-3 border border-destructive/20">
           <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-          <span className="text-sm font-medium text-destructive">{error}</span>
+          <span className="text-sm font-medium text-destructive">
+            {error || duplicateAssignmentMessage}
+          </span>
         </div>
       )}
 

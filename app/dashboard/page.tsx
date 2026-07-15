@@ -271,8 +271,8 @@ export default function DashboardPage() {
             <>
               {/* KPI Cards */}
               <section data-animate className="w-full">
-                <h3 className="section-label mb-5">Key Metrics</h3>
                 <AISummary
+                  heading="Key Metrics"
                   title="Key Metrics (data quality error rates, meter counts, and pattern totals)"
                   data={kpiSummaryData}
                   className="mb-5"
@@ -287,27 +287,23 @@ export default function DashboardPage() {
               </section>
 
               {/* Analysis Section */}
-              <section data-animate className="grid gap-6 lg:grid-cols-2">
-                <div className="flex flex-col gap-4">
-                  <AISummary
-                    title="Bill Range (billing data coverage by provider)"
-                    data={summary.bill_range}
-                  />
+              <section data-animate>
+                <AISummary
+                  heading="Provider Analysis"
+                  title="Provider Analysis (billing data coverage plus site counts by provider and site type)"
+                  data={{ bill_range: summary.bill_range, site_types: summary.site_types }}
+                  className="mb-4"
+                />
+                <div className="grid gap-6 lg:grid-cols-2">
                   <BillRangeChart billRange={summary.bill_range} />
-                </div>
-                <div className="flex flex-col gap-4">
-                  <AISummary
-                    title="Site Types (site counts by provider and site type)"
-                    data={summary.site_types}
-                  />
                   <SiteTypesChart siteTypes={summary.site_types} />
                 </div>
               </section>
 
               {/* Data Quality */}
               <section data-animate>
-                <h3 className="section-label mb-4">Data Quality</h3>
                 <AISummary
+                  heading="Data Quality"
                   title="Data Quality (malformed and duplicate site IDs)"
                   data={dataQualitySummaryData}
                   className="mb-4"
@@ -393,10 +389,8 @@ export default function DashboardPage() {
 
               {/* Bill Patterns (last 3 months per meter) */}
               <section data-animate>
-                <h3 className="section-label mb-4">
-                  Bill Patterns — Last {meterPatternsSummary?.window ?? 3} Months
-                </h3>
                 <AISummary
+                  heading={`Bill Patterns — Last ${meterPatternsSummary?.window ?? 3} Months`}
                   title="Bill Patterns (per-meter shutdown, gap, and normal billing patterns)"
                   data={billPatternsSummaryData}
                   className="mb-4"
@@ -406,8 +400,8 @@ export default function DashboardPage() {
 
               {/* Maintenance Sites */}
               <section data-animate>
-                <h3 className="section-label mb-4">Maintenance Records</h3>
                 <AISummary
+                  heading="Maintenance Records"
                   title="Maintenance Records (sites billed at maintenance rates in the last 6 months)"
                   data={maintenanceSummaryData}
                   className="mb-4"

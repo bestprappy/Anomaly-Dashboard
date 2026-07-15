@@ -371,6 +371,19 @@
   .animate-pulse-subtle {
     animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  @keyframes ai-glow-pulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0.375rem color-mix(in oklab, var(--primary) 30%, transparent),
+        0 0 1rem color-mix(in oklab, var(--primary) 18%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0.625rem color-mix(in oklab, var(--primary) 55%, transparent),
+        0 0 1.75rem color-mix(in oklab, var(--primary) 32%, transparent);
+    }
+  }
 }
 
 @layer components {
@@ -452,6 +465,39 @@
 
   .btn-ghost {
     @apply text-foreground hover:bg-surface/50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* AI action button — primary-glow pulse so AI features stand out */
+  .btn-ai {
+    @apply bg-primary text-primary-foreground hover:opacity-95 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    animation: ai-glow-pulse 2.4s ease-in-out infinite;
+  }
+
+  /* AI summary body — theme-tinted but foreground-dominant so it stays readable */
+  .ai-summary-text {
+    color: color-mix(in oklab, var(--primary) 45%, var(--foreground));
+  }
+
+  /* Model-bolded key figures — stronger primary pop against the tinted body */
+  .ai-summary-text strong {
+    @apply font-semibold;
+    color: color-mix(in oklab, var(--primary) 85%, var(--foreground));
+  }
+
+  /* AI summary panel — translucent primary tint with a static glow */
+  .ai-glow-panel {
+    @apply rounded-md bg-primary/10;
+    border: 1px solid color-mix(in oklab, var(--primary) 40%, var(--border));
+    box-shadow:
+      0 0 0.875rem color-mix(in oklab, var(--primary) 20%, transparent),
+      inset 0 1px 0 color-mix(in oklab, var(--primary) 12%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-ai {
+      animation: none;
+      box-shadow: 0 0 0.75rem color-mix(in oklab, var(--primary) 35%, transparent);
+    }
   }
 
   /* Skeleton Screens */

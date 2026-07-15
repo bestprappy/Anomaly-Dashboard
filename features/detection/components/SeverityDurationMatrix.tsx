@@ -36,8 +36,8 @@ const TRIAGE_STYLES: Record<TriageLabel, string> = {
 /** Action wording per cell: severity sets the base urgency, duration escalates it. */
 const CELL_TRIAGE: Record<DurationBand, Record<SeverityBand, TriageLabel>> = {
   "Single month": { Low: "Ignore", Medium: "Review", High: "Investigate" },
-  "2-3 months": { Low: "Ignore", Medium: "Review", High: "Investigate" },
-  ">=4 months": { Low: "Review", Medium: "Investigate", High: "Investigate" },
+  "2-3 months": { Low: "Review", Medium: "Review", High: "Investigate" },
+  ">=4 months": { Low: "Investigate", Medium: "Investigate", High: "Investigate" },
 };
 
 function cellKey(duration: DurationBand, severity: SeverityBand): string {

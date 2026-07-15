@@ -25,6 +25,21 @@ const SEVERITY_HEADER_STYLES: Record<SeverityBand, string> = {
   High: "text-destructive",
 };
 
+type TriageLabel = "Ignore" | "Review" | "Investigate";
+
+const TRIAGE_STYLES: Record<TriageLabel, string> = {
+  Ignore: "text-muted-foreground",
+  Review: "text-warning",
+  Investigate: "text-destructive",
+};
+
+/** Action wording per cell: severity sets the base urgency, duration escalates it. */
+const CELL_TRIAGE: Record<DurationBand, Record<SeverityBand, TriageLabel>> = {
+  "Single month": { Low: "Ignore", Medium: "Review", High: "Investigate" },
+  "2-3 months": { Low: "Ignore", Medium: "Review", High: "Investigate" },
+  ">=4 months": { Low: "Review", Medium: "Investigate", High: "Investigate" },
+};
+
 function cellKey(duration: DurationBand, severity: SeverityBand): string {
   return `${duration}:${severity}`;
 }
@@ -59,9 +74,9 @@ function confidenceInterval(rate: AgreementRate): string | null {
 function SummaryCounts({ data }: { data: SeverityDurationResponse }) {
   const items = [
     {
-      label: "Events found",
+      label: "Unique Sites",
       value: data.counts.total_events,
-      detail: "Merged elevated runs",
+      detail: "Duplicated monthly detections combined into single site",
     },
     {
       label: "In matrix",
@@ -74,9 +89,9 @@ function SummaryCounts({ data }: { data: SeverityDurationResponse }) {
       detail: `${formatCount(data.counts.unconfirmed_duration_events)} unconfirmed duration`,
     },
     {
-      label: "Right-censored",
+      label: "On-going",
       value: data.counts.right_censored_events,
-      detail: "Observation ended or a month was missing",
+      detail: "The event has not returned to normal before the latest available month.",
     },
   ];
 
@@ -118,8 +133,8 @@ function MatrixTable({ data }: { data: SeverityDurationResponse }) {
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full min-w-[42rem] border-collapse text-sm">
           <caption className="sr-only">
-            Event counts by duration on the rows and severity score on the columns. Percentages are
-            within each duration row.
+            Event counts by duration on the rows and severity score on the columns. Each cell shows
+            the recommended action; hover a cell for its share within the duration row.
           </caption>
           <thead className="bg-surface/60">
             <tr className="border-b border-border">
@@ -168,9 +183,11 @@ function MatrixTable({ data }: { data: SeverityDurationResponse }) {
                 </th>
                 {data.axes.x.bands.map((severity) => {
                   const cell = getCell(duration, severity);
+                  const triage = CELL_TRIAGE[duration][severity];
                   return (
                     <td
                       key={severity}
+                      title={`${formatRowPercent(cell.row_percent)} of duration row`}
                       className={`border-l border-border px-4 py-5 text-center first:border-l-0 ${heatClass(
                         cell.count,
                         maximum
@@ -179,8 +196,12 @@ function MatrixTable({ data }: { data: SeverityDurationResponse }) {
                       <span className="block text-2xl font-bold tabular-nums text-foreground">
                         {formatCount(cell.count)}
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {formatRowPercent(cell.row_percent)} of duration row
+                      <span
+                        className={`mt-0.5 block text-xs font-medium ${
+                          cell.count === 0 ? "text-muted-foreground" : TRIAGE_STYLES[triage]
+                        }`}
+                      >
+                        {cell.count === 0 ? "No events" : triage}
                       </span>
                     </td>
                   );

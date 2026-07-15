@@ -11,6 +11,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DetectionTab, detectionTabAtom } from "@/features/detection/atoms";
 import { AbnormalResultsPanel } from "@/features/detection/components/AbnormalResultsPanel";
+import { AnomalyTrendPanel } from "@/features/detection/components/AnomalyTrendPanel";
 import { BuildModelPanel } from "@/features/detection/components/BuildModelPanel";
 import { ClassifyPanel } from "@/features/detection/components/ClassifyPanel";
 import { DropOptionsPanel } from "@/features/detection/components/DropOptionsPanel";
@@ -127,9 +128,17 @@ export default function DetectorPage() {
                 <StepSection
                   step={5}
                   title="Flagged anomalies"
-                  description="Every site-month whose kWh fell outside the prediction band."
+                  description="Every site-month whose kWh fell outside the prediction band. Click a site ID to see its trend below."
                 >
                   <AbnormalResultsPanel />
+                </StepSection>
+
+                <StepSection
+                  step={6}
+                  title="Site trend"
+                  description="Full kWh and bill history of the selected site, with the flagged month pinged."
+                >
+                  <AnomalyTrendPanel />
                 </StepSection>
               </ErrorBoundary>
             </Tabs.Panel>
@@ -139,13 +148,21 @@ export default function DetectorPage() {
                 <StepSection
                   step={1}
                   title="Classify anomalies"
-                  description="Split the flags into spikes and sustained steps with your own thresholds."
+                  description="Split the flags into spikes and sustained steps with your own thresholds. Click a site ID to see its trend below."
                 >
                   <ClassifyPanel modelReady={modelReady} />
                 </StepSection>
 
                 <StepSection
                   step={2}
+                  title="Site trend"
+                  description="Full kWh and bill history of the selected site, with the flagged month pinged."
+                >
+                  <AnomalyTrendPanel />
+                </StepSection>
+
+                <StepSection
+                  step={3}
                   title="Severity and duration matrix"
                   description="Group confirmed events into nine cells and check whether duration agrees with the spike/step intuition."
                 >
@@ -153,7 +170,7 @@ export default function DetectorPage() {
                 </StepSection>
 
                 <StepSection
-                  step={3}
+                  step={4}
                   title="Example plots"
                   description="Server-rendered kWh trends of classified sites, with the anomaly marked."
                 >

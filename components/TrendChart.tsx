@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   Area,
   CartesianGrid,
@@ -11,10 +12,16 @@ import {
   YAxis,
 } from "recharts";
 import { SiteTrend, SiteTrendBundle } from "@/lib/api";
+import {
+  SegmentedControl,
+  SegmentedControlOption,
+} from "@/components/ui/SegmentedControl";
 import { Building2, ReceiptText, Zap } from "lucide-react";
 
 interface TrendChartProps {
   trend: SiteTrendBundle;
+  /** Months (YYYYMM keys) to mark with a glowing anomaly ping on the KWH series. */
+  highlightMonths?: readonly number[];
 }
 
 interface CustomDotProps {
@@ -36,12 +43,73 @@ const CustomDot = ({ cx, cy, fill }: CustomDotProps) => {
   );
 };
 
+const AnomalyPingDot = ({ cx, cy }: { cx?: number; cy?: number }) => {
+  if (typeof cx !== "number" || typeof cy !== "number") return null;
+  return (
+    <g>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={9}
+        fill="none"
+        stroke="var(--destructive)"
+        strokeWidth={2}
+        className="anomaly-ping-ring"
+      />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4.5}
+        fill="var(--destructive)"
+        stroke="var(--card)"
+        strokeWidth={2}
+        style={{ filter: "drop-shadow(0 0 6px var(--destructive))" }}
+      />
+    </g>
+  );
+};
+
 interface TrendChartDatum {
   billAmount: number | null;
   kwh: number | null;
   month: string;
   monthKey: number;
 }
+
+const TREND_RANGES = [
+  { key: "3m", label: "3M", months: 3 },
+  { key: "6m", label: "6M", months: 6 },
+  { key: "1y", label: "1Y", months: 12 },
+  { key: "3y", label: "3Y", months: 36 },
+  { key: "all", label: "All", months: null },
+] as const;
+
+type TrendRangeKey = (typeof TREND_RANGES)[number]["key"];
+
+const RANGE_OPTIONS: readonly SegmentedControlOption<TrendRangeKey>[] =
+  TREND_RANGES.map(({ key, label }) => ({ value: key, label }));
+
+// monthKey is YYYYMM (e.g. 202411); convert through a flat month count
+// so subtraction carries across year boundaries.
+const subtractMonths = (monthKey: number, months: number): number => {
+  const flat =
+    Math.floor(monthKey / 100) * 12 + ((monthKey % 100) - 1) - months;
+  return Math.floor(flat / 12) * 100 + (flat % 12) + 1;
+};
+
+const filterByRange = (
+  data: TrendChartDatum[],
+  range: TrendRangeKey
+): TrendChartDatum[] => {
+  const months = TREND_RANGES.find(({ key }) => key === range)?.months;
+  if (!months || data.length === 0) return data;
+
+  // Anchor on the latest month in the data (rows are sorted ascending),
+  // inclusive of that month, so "3M" always shows the newest 3 months.
+  const latest = data[data.length - 1].monthKey;
+  const cutoff = subtractMonths(latest, months - 1);
+  return data.filter((point) => point.monthKey >= cutoff);
+};
 
 const formatMonth = (month: number) =>
   month.toString().replace(/(\d{4})(\d{2})/, "$1-$2");
@@ -94,7 +162,27 @@ const buildChartData = (trend: SiteTrendBundle): TrendChartDatum[] => {
     }));
 };
 
-export function TrendChart({ trend }: TrendChartProps) {
+export function TrendChart({ trend, highlightMonths }: TrendChartProps) {
+  const [range, setRange] = useState<TrendRangeKey>("all");
+
+  const highlightSet = useMemo(
+    () => new Set(highlightMonths ?? []),
+    [highlightMonths]
+  );
+
+  const validData = useMemo(
+    () =>
+      buildChartData(trend).filter(
+        (point) => point.kwh !== null || point.billAmount !== null
+      ),
+    [trend]
+  );
+
+  const visibleData = useMemo(
+    () => filterByRange(validData, range),
+    [validData, range]
+  );
+
   const displayTrend = getDisplayTrend(trend);
 
   if (!displayTrend.found) {
@@ -105,54 +193,63 @@ export function TrendChart({ trend }: TrendChartProps) {
     );
   }
 
-  const data = buildChartData(trend);
-  const validData = data.filter(
-    (point) => point.kwh !== null || point.billAmount !== null
-  );
+  // Series presence comes from the full data, not the visible slice, so
+  // axes and series stay mounted while the range animates.
   const hasKwh = validData.some((point) => point.kwh !== null);
   const hasBilling = validData.some((point) => point.billAmount !== null);
 
   return (
     <div className="card-base p-8">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-baseline gap-3 mb-4">
-          <h3 className="text-2xl font-bold text-foreground">
-            {displayTrend.site_id}
-          </h3>
-          <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
-            KWH + Amount
-          </span>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-baseline gap-3 mb-4">
+            <h3 className="text-2xl font-bold text-foreground">
+              {displayTrend.site_id}
+            </h3>
+            <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
+              KWH + Amount
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-6 text-sm">
+            {displayTrend.provider && (
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-primary" />
+                <span className="text-muted-foreground">Provider:</span>
+                <span className="text-foreground font-semibold">
+                  {displayTrend.provider}
+                </span>
+              </div>
+            )}
+            {displayTrend.company && (
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-primary" />
+                <span className="text-muted-foreground">Company:</span>
+                <span className="text-foreground font-semibold">
+                  {displayTrend.company}
+                </span>
+              </div>
+            )}
+            {displayTrend.site_type && (
+              <div>
+                <span className="text-muted-foreground">Type:</span>
+                <span className="text-foreground font-semibold ml-2">
+                  {displayTrend.site_type}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-6 text-sm">
-          {displayTrend.provider && (
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-primary" />
-              <span className="text-muted-foreground">Provider:</span>
-              <span className="text-foreground font-semibold">
-                {displayTrend.provider}
-              </span>
-            </div>
-          )}
-          {displayTrend.company && (
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-primary" />
-              <span className="text-muted-foreground">Company:</span>
-              <span className="text-foreground font-semibold">
-                {displayTrend.company}
-              </span>
-            </div>
-          )}
-          {displayTrend.site_type && (
-            <div>
-              <span className="text-muted-foreground">Type:</span>
-              <span className="text-foreground font-semibold ml-2">
-                {displayTrend.site_type}
-              </span>
-            </div>
-          )}
-        </div>
+        {validData.length > 0 && (
+          <SegmentedControl
+            value={range}
+            onValueChange={setRange}
+            options={RANGE_OPTIONS}
+            aria-label="Trend date range"
+          />
+        )}
       </div>
 
       {validData.length > 0 ? (
@@ -160,7 +257,7 @@ export function TrendChart({ trend }: TrendChartProps) {
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
-                data={validData}
+                data={visibleData}
                 margin={{
                   top: 10,
                   right: hasBilling ? 12 : 20,
@@ -252,14 +349,21 @@ export function TrendChart({ trend }: TrendChartProps) {
                   stroke="var(--primary)"
                   strokeWidth={3}
                   fill="url(#colorKwh)"
-                  dot={<CustomDot fill="var(--primary)" />}
+                  dot={({ key, cx, cy, payload }) =>
+                    payload && highlightSet.has(payload.monthKey) ? (
+                      <AnomalyPingDot key={key} cx={cx} cy={cy} />
+                    ) : (
+                      <CustomDot key={key} cx={cx} cy={cy} fill="var(--primary)" />
+                    )
+                  }
                   activeDot={{
                     r: 6,
                     fill: "var(--primary)",
                   }}
                   connectNulls
                   isAnimationActive={true}
-                  animationDuration={1000}
+                  animationDuration={700}
+                  animationEasing="ease-in-out"
                 />
               ) : null}
 
@@ -278,7 +382,8 @@ export function TrendChart({ trend }: TrendChartProps) {
                   }}
                   connectNulls
                   isAnimationActive={true}
-                  animationDuration={1000}
+                  animationDuration={700}
+                  animationEasing="ease-in-out"
                 />
               ) : null}
               </ComposedChart>
@@ -304,6 +409,16 @@ export function TrendChart({ trend }: TrendChartProps) {
                   aria-hidden="true"
                 />
                 <span>Amount</span>
+              </div>
+            ) : null}
+            {hasKwh && highlightSet.size > 0 ? (
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full ring-2 ring-destructive/30"
+                  style={{ backgroundColor: "var(--destructive)" }}
+                  aria-hidden="true"
+                />
+                <span>Anomaly month</span>
               </div>
             ) : null}
           </div>

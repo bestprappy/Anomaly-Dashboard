@@ -7,6 +7,15 @@ export function formatYyyymm(value: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
+/** "2024-06" -> 202406; null when the string is not a valid YYYY-MM month. */
+export function parseYyyymm(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  return Number(match[1]) * 100 + month;
+}
+
 /** 0.1234 -> "12.3%" */
 export function formatRate(value: number | null | undefined, digits = 1): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "–";

@@ -15,6 +15,7 @@ import { NumberField } from "@/components/ui/NumberField";
 import { AnomalyTypeBadge } from "@/features/detection/components/AnomalyTypeBadge";
 import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { SeverityBadge } from "@/features/detection/components/SeverityBadge";
+import { SiteTrendLink } from "@/features/detection/components/SiteTrendLink";
 import { ANOM_TYPE_LABELS, MAX_TABLE_ROWS, SURFACED_ANOM_TYPES } from "@/features/detection/data";
 import { formatCount, formatKwh } from "@/features/detection/format";
 import { useClassifyAnomalies } from "@/features/detection/hooks";
@@ -22,6 +23,7 @@ import { useClassifyAnomalies } from "@/features/detection/hooks";
 /**
  * Result tab step 1: user-tunable UP/DOWN/SUSTAIN jump thresholds.
  * Classification is cheap (no refit), so it can be re-run freely.
+ * Clicking a site opens it in the trend panel below the table.
  */
 
 const COLUMNS: DataTableColumn<ClassifiedRow>[] = [
@@ -29,7 +31,7 @@ const COLUMNS: DataTableColumn<ClassifiedRow>[] = [
     key: "site",
     header: "Site ID",
     render: (row) => (
-      <span className="font-mono text-xs font-semibold text-primary">{row.site_id}</span>
+      <SiteTrendLink siteId={row.site_id} anomMonth={row.anom_month} />
     ),
   },
   { key: "month", header: "Month", render: (row) => row.anom_month },

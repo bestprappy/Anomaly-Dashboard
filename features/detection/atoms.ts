@@ -43,6 +43,15 @@ export const lastBuildAtom = atom<BuildResponse | null>(null);
 /** Latest classification snapshot; cleared whenever a new model is built. */
 export const classifiedResultAtom = atom<ClassifyResponse | null>(null);
 
+export interface InspectedAnomaly {
+  siteId: string;
+  /** Anomaly month as a YYYYMM key (matches SiteTrend series months); null if unparsable. */
+  anomMonth: number | null;
+}
+
+/** Site picked from the flagged-anomalies table; drives the trend panel below it. */
+export const inspectedAnomalyAtom = atom<InspectedAnomaly | null>(null);
+
 export const examplesTypeAtom = atom<SurfacedAnomType>("spike_up");
 
 export const examplesLimitAtom = atom<number>(DEFAULT_EXAMPLE_LIMIT);

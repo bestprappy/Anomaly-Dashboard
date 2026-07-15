@@ -7,6 +7,7 @@ import type { AbnormalRow } from "@/lib/mlApi";
 import { DataTable, DataTableColumn } from "@/components/ui/DataTable";
 import { ErrorNotice } from "@/components/ui/ErrorNotice";
 import { SeverityBadge } from "@/features/detection/components/SeverityBadge";
+import { SiteTrendLink } from "@/features/detection/components/SiteTrendLink";
 import { MAX_TABLE_ROWS } from "@/features/detection/data";
 import { formatCount, formatKwh } from "@/features/detection/format";
 import { useAbnormalAnomalies } from "@/features/detection/hooks";
@@ -14,6 +15,7 @@ import { useAbnormalAnomalies } from "@/features/detection/hooks";
 /**
  * Step 5 of the Process tab: the flagged (site, month, kWh) rows of the
  * current model, ranked by how far outside the band they landed.
+ * Clicking a site opens it in the trend panel below the table.
  */
 
 const COLUMNS: DataTableColumn<AbnormalRow>[] = [
@@ -21,7 +23,7 @@ const COLUMNS: DataTableColumn<AbnormalRow>[] = [
     key: "site",
     header: "Site ID",
     render: (row) => (
-      <span className="font-mono text-xs font-semibold text-primary">{row.site_id}</span>
+      <SiteTrendLink siteId={row.site_id} anomMonth={row.anom_month} />
     ),
   },
   { key: "month", header: "Month", render: (row) => row.anom_month },
